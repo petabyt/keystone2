@@ -717,6 +717,9 @@ size_t AsmParser::Run(bool NoInitialTextSection, uint64_t Address, bool NoFinali
     //printf(">> 222 error = %u\n", Info.KsError);
     if (!KsError) {
         KsError = Info.KsError;
+        if (Info.ParseError) {
+          KsError = KS_ERR_ASM;
+        }
         return 0;
     }
 

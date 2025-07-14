@@ -205,6 +205,8 @@ static ks_err InitKs(int arch, ks_engine *ks, std::string TripleName)
     static bool initialized = false;
     std::string MCPU = "";
 
+    ks->instructionStreamHandler = nullptr;
+
     if (!initialized) {
         initialized = true;
         // Initialize targets and assembly parsers.
@@ -590,6 +592,10 @@ ks_err ks_option(ks_engine *ks, ks_opt_type type, size_t value)
     return KS_ERR_OPT_INVALID;
 }
 
+KEYSTONE_EXPORT
+void ks_set_instruction_stream_handler(ks_engine *ks, void (*handler)(void *arg, unsigned int of, unsigned int size)) {
+    ks->instructionStreamHandler = handler;
+}
 
 KEYSTONE_EXPORT
 void ks_free(unsigned char *p)
@@ -634,6 +640,7 @@ int ks_asm(ks_engine *ks,
     *insn_size = 0;
 
     MCContext Ctx(ks->MAI, ks->MRI, &ks->MOFI, &ks->SrcMgr, true, address);
+    Ctx.instructionStreamHandler = ks->instructionStreamHandler;
     ks->MOFI.InitMCObjectFileInfo(Triple(ks->TripleName), Ctx);
     CE = ks->TheTarget->createMCCodeEmitter(*ks->MCII, *ks->MRI, Ctx);
     if (!CE) {

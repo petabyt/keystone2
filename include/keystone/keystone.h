@@ -338,6 +338,8 @@ int ks_asm(ks_engine *ks,
 KEYSTONE_EXPORT
 void ks_free(unsigned char *p);
 
+KEYSTONE_EXPORT
+void ks_set_instruction_stream_handler(ks_engine *ks, void (*handler)(void *arg, unsigned int of, unsigned int size));
 
 #ifdef __cplusplus
 }

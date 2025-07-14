@@ -406,7 +406,7 @@ private:
   bool parseDirectiveSet(StringRef IDVal, bool allow_redef);
   bool parseDirectiveOrg(); // ".org"
   // ".align{,32}", ".p2align{,w,l}"
-  bool parseDirectiveAlign(bool IsPow2, unsigned ValueSize);
+  bool parseDirectiveAlign(bool IsPow2, unsigned ValueSize, uint64_t &Address);
 
   // ".file", ".line", ".loc", ".stabs"
   bool parseDirectiveFile(SMLoc DirectiveLoc);
@@ -1763,31 +1763,31 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       break;
     case DK_ALIGN: {
       bool IsPow2 = !getContext().getAsmInfo()->getAlignmentIsInBytes();
-      is_error = parseDirectiveAlign(IsPow2, /*ExprSize=*/1);
+      is_error = parseDirectiveAlign(IsPow2, /*ExprSize=*/1, Address);
       break;
     }
     case DK_ALIGN32: {
       bool IsPow2 = !getContext().getAsmInfo()->getAlignmentIsInBytes();
-      is_error = parseDirectiveAlign(IsPow2, /*ExprSize=*/4);
+      is_error = parseDirectiveAlign(IsPow2, /*ExprSize=*/4, Address);
       break;
     }
     case DK_BALIGN:
-      is_error = parseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/1);
+      is_error = parseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/1, Address);
       break;
     case DK_BALIGNW:
-      is_error = parseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/2);
+      is_error = parseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/2, Address);
       break;
     case DK_BALIGNL:
-      is_error = parseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/4);
+      is_error = parseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/4, Address);
       break;
     case DK_P2ALIGN:
-      is_error = parseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/1);
+      is_error = parseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/1, Address);
       break;
     case DK_P2ALIGNW:
-      is_error = parseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/2);
+      is_error = parseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/2, Address);
       break;
     case DK_P2ALIGNL:
-      is_error = parseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/4);
+      is_error = parseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/4, Address);
       break;
     case DK_ORG:
       is_error = parseDirectiveOrg();
@@ -2029,7 +2029,11 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
     if (!is_error) {
       // increment the address for the next statement if the directive
       // has emitted any value to the streamer.
-      Address += getStreamer().getCurrentFragmentSize() - BytesInFragment;
+      if (getStreamer().getCurrentFragmentSize() != 0) {
+        Address += getStreamer().getCurrentFragmentSize() - BytesInFragment;
+      } else {
+        //printf("WARN: getCurrentFragmentSize() is zero\n");
+      }
       return false;
     }
 
@@ -3268,7 +3272,7 @@ bool AsmParser::parseDirectiveOrg() {
 
 /// parseDirectiveAlign
 ///  ::= {.align, ...} expression [ , expression [ , expression ]]
-bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize)
+bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize, uint64_t &Address)
 {
   checkForValidSection();
 
@@ -3373,12 +3377,16 @@ bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize)
   bool UseCodeAlign = Section->UseCodeAlign();
   if ((!HasFillExpr || Lexer.getMAI().getTextAlignFillValue() == FillExpr) &&
       ValueSize == 1 && UseCodeAlign) {
+    //printf("valuesize: %d\n", MaxBytesToFill);
     getStreamer().EmitCodeAlignment(Alignment, MaxBytesToFill);
   } else {
     // FIXME: Target specific behavior about how the "extra" bytes are filled.
     getStreamer().EmitValueToAlignment(Alignment, FillExpr, ValueSize,
                                        MaxBytesToFill);
   }
+
+  // TODO: Tried to align this
+  Address = (Address + (__builtin_ctz(Alignment) * 4 - 1)) & ~(__builtin_ctz(Alignment) * 4 - 1);
 
   return false;
 }

@@ -83,7 +83,7 @@ class RISCVAsmParser : public MCTargetAsmParser {
 
   // Helper to emit a combination of LUI, ADDI(W), and SLLI instructions that
   // synthesize the desired immedate value into the destination register.
-  void emitLoadImm(unsigned DestReg, int64_t Value, MCStreamer &Out);
+  void emitLoadImm(MCInst &oldInst, unsigned DestReg, int64_t Value, MCStreamer &Out);
 
   // Helper to emit a combination of AUIPC and SecondOpcode. Used to implement
   // helpers such as emitLoadLocalAddress and emitLoadAddress.
@@ -818,8 +818,14 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   switch (Result) {
   default:
     break;
-  case Match_Success:
-    return processInstruction(Inst, IDLoc, Operands, Out);
+  case Match_Success: {
+    printf("getaddress: %x\n", Inst.getAddress());
+    bool rc = processInstruction(Inst, IDLoc, Operands, Out);
+    Address = Inst.getAddress(); // keystone
+    printf("Set address to %x\n", Address);
+
+    return rc;
+    }
   case Match_MissingFeature:
     // Return error to Keystone 
     ErrorCode = KS_ERR_ASM_RISCV_MISSINGFEATURE;
@@ -1556,11 +1562,15 @@ void RISCVAsmParser::emitToStreamer(MCStreamer &S, MCInst &Inst) {
   MCInst CInst;
   bool Res = compressInst(CInst, Inst, getSTI(), S.getContext());
   CInst.setLoc(Inst.getLoc());
+  CInst.setAddress(Inst.getAddress());
   unsigned int ErrorCode = 0;
   S.EmitInstruction((Res ? CInst : Inst), getSTI(),ErrorCode);
+  if (Res) {
+    Inst.setAddress(CInst.getAddress());
+  }
 }
 
-void RISCVAsmParser::emitLoadImm(unsigned DestReg, int64_t Value,
+void RISCVAsmParser::emitLoadImm(MCInst &oldInst, unsigned DestReg, int64_t Value,
                                  MCStreamer &Out) {
   RISCVMatInt::InstSeq Seq;
   RISCVMatInt::generateInstSeq(Value, isRV64(), Seq);
@@ -1568,12 +1578,14 @@ void RISCVAsmParser::emitLoadImm(unsigned DestReg, int64_t Value,
   unsigned SrcReg = RISCV::X0;
   for (RISCVMatInt::Inst &Inst : Seq) {
     if (Inst.Opc == RISCV::LUI) {
-      emitToStreamer(
-          Out, MCInstBuilder(RISCV::LUI).addReg(DestReg).addImm(Inst.Imm));
+      MCInst inst = MCInstBuilder(RISCV::LUI).addReg(DestReg).addImm(Inst.Imm).setAddress(oldInst.getAddress());
+      emitToStreamer(Out, inst);
+      oldInst.setAddress(inst.getAddress());
     } else {
-      emitToStreamer(
-          Out, MCInstBuilder(Inst.Opc).addReg(DestReg).addReg(SrcReg).addImm(
-                   Inst.Imm));
+      MCInst inst = MCInstBuilder(Inst.Opc).addReg(DestReg).addReg(SrcReg).addImm(
+                         Inst.Imm).setAddress(oldInst.getAddress());
+      emitToStreamer(Out, inst);
+      oldInst.setAddress(inst.getAddress());
     }
 
     // Only the first instruction has X0 as its source.
@@ -1724,10 +1736,12 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     if (Op1.isExpr()) {
       // We must have li reg, %lo(sym) or li reg, %pcrel_lo(sym) or similar.
       // Just convert to an addi. This allows compatibility with gas.
-      emitToStreamer(Out, MCInstBuilder(RISCV::ADDI)
-                              .addReg(Reg)
-                              .addReg(RISCV::X0)
-                              .addExpr(Op1.getExpr()));
+      MCInst newInst = MCInstBuilder(RISCV::ADDI)
+                                    .addReg(Reg)
+                                    .addReg(RISCV::X0)
+                                    .addExpr(Op1.getExpr()).setAddress(Inst.getAddress());
+      emitToStreamer(Out, newInst);
+      Inst.setAddress(newInst.getAddress()); // keystone
       return false;
     }
     int64_t Imm = Inst.getOperand(1).getImm();
@@ -1736,7 +1750,8 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     // represents the expected signed 64-bit number.
     if (!isRV64())
       Imm = SignExtend64<32>(Imm);
-    emitLoadImm(Reg, Imm, Out);
+    emitLoadImm(Inst, Reg, Imm, Out);
+    //printf("%x\n", Inst.getAddress());
     return false;
   }
   case RISCV::PseudoLLA:

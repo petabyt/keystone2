@@ -29,6 +29,13 @@ public:
   }
 
   /// \brief Add a new register operand.
+  MCInstBuilder &setAddress(uint64_t Address) {
+    Inst.setAddress(Address);
+    return *this;
+  }
+
+
+  /// \brief Add a new register operand.
   MCInstBuilder &addReg(unsigned Reg) {
     Inst.addOperand(MCOperand::createReg(Reg));
     return *this;

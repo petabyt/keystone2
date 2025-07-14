@@ -202,7 +202,6 @@ void RISCVMCCodeEmitter::encodeInstruction(MCInst &Inst, raw_ostream &OS,
   case 4: {
     uint32_t Bits = getBinaryCodeForInstr(Inst, Fixups, STI);
     support::endian::Writer<support::little>(OS).write<uint32_t>(Bits);
-
     break;
   }
   }
@@ -210,6 +209,8 @@ void RISCVMCCodeEmitter::encodeInstruction(MCInst &Inst, raw_ostream &OS,
   if (Ctx.instructionStreamHandler != nullptr) {
     Ctx.instructionStreamHandler(nullptr, Inst.getAddress(), Size);
   }
+
+  Inst.setAddress(Inst.getAddress() + Size);
 }
 
 unsigned

@@ -819,11 +819,8 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   default:
     break;
   case Match_Success: {
-    printf("getaddress: %x\n", Inst.getAddress());
     bool rc = processInstruction(Inst, IDLoc, Operands, Out);
     Address = Inst.getAddress(); // keystone
-    printf("Set address to %x\n", Address);
-
     return rc;
     }
   case Match_MissingFeature:
@@ -1751,7 +1748,6 @@ bool RISCVAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     if (!isRV64())
       Imm = SignExtend64<32>(Imm);
     emitLoadImm(Inst, Reg, Imm, Out);
-    //printf("%x\n", Inst.getAddress());
     return false;
   }
   case RISCV::PseudoLLA:

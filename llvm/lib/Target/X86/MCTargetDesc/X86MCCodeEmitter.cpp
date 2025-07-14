@@ -1643,6 +1643,9 @@ encodeInstruction(MCInst &MI, raw_ostream &OS,
   if (KsError == 0 && TSFlags & X86II::Has3DNow0F0FOpcode)
     EmitByte(X86II::getBaseOpcodeFor(TSFlags), CurByte, OS);
 
+  if (Ctx.instructionStreamHandler != nullptr) {
+    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, MI.getAddress(), CurByte);
+  }
 
   // Keystone: update Inst.Address to point to the next instruction
   MI.setAddress(MI.getAddress() + CurByte);

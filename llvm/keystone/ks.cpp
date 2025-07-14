@@ -593,8 +593,9 @@ ks_err ks_option(ks_engine *ks, ks_opt_type type, size_t value)
 }
 
 KEYSTONE_EXPORT
-void ks_set_instruction_stream_handler(ks_engine *ks, void (*handler)(void *arg, unsigned int of, unsigned int size)) {
+void ks_set_instruction_stream_handler(ks_engine *ks, void (*handler)(void *arg, unsigned int of, unsigned int size), void *arg) {
     ks->instructionStreamHandler = handler;
+    ks->instructionStreamHandlerArg = arg;
 }
 
 KEYSTONE_EXPORT
@@ -641,6 +642,7 @@ int ks_asm(ks_engine *ks,
 
     MCContext Ctx(ks->MAI, ks->MRI, &ks->MOFI, &ks->SrcMgr, true, address);
     Ctx.instructionStreamHandler = ks->instructionStreamHandler;
+    Ctx.instructionStreamHandlerArg = ks->instructionStreamHandlerArg;
     ks->MOFI.InitMCObjectFileInfo(Triple(ks->TripleName), Ctx);
     CE = ks->TheTarget->createMCCodeEmitter(*ks->MCII, *ks->MRI, Ctx);
     if (!CE) {

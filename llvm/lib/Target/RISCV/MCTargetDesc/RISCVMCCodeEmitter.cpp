@@ -207,7 +207,7 @@ void RISCVMCCodeEmitter::encodeInstruction(MCInst &Inst, raw_ostream &OS,
   }
 
   if (Ctx.instructionStreamHandler != nullptr) {
-    Ctx.instructionStreamHandler(nullptr, Inst.getAddress(), Size);
+    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, Inst.getAddress(), Size);
   }
 
   Inst.setAddress(Inst.getAddress() + Size);

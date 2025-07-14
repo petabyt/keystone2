@@ -55,6 +55,7 @@ namespace llvm_ks {
     typedef StringMap<MCSymbol *, BumpPtrAllocator &> SymbolTable;
 
     void (*instructionStreamHandler)(void *arg, unsigned int of, unsigned int size);
+    void *instructionStreamHandlerArg;
 
   private:
     /// The SourceMgr for this object, if any.

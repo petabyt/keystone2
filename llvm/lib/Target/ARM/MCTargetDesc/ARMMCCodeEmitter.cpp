@@ -1700,6 +1700,10 @@ encodeInstruction(MCInst &MI, raw_ostream &OS,
   } else
     EmitConstant(Binary, Size, OS);
 
+  if (CTX.instructionStreamHandler != nullptr) {
+    CTX.instructionStreamHandler(CTX.instructionStreamHandlerArg, MI.getAddress(), Size);
+  }
+
   // update Inst.Address for Keystone
   MI.setAddress(MI.getAddress() + Size);
 }

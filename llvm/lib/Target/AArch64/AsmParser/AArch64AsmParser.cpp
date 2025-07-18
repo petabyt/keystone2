@@ -70,8 +70,7 @@ private:
                     bool invertCondCode);
 
   void Warning(SMLoc L, const Twine &Msg) { getParser().Warning(L, Msg); }
-  //bool Error(SMLoc L, const Twine &Msg) { return getParser().Error(L, Msg); }
-  //bool Error(SMLoc L, const Twine &Msg) { return true; }
+  bool Error(SMLoc L, const Twine &Msg) { return getParser().Error(L, Msg); }
   bool showMatchError(SMLoc Loc, unsigned ErrCode);
 
   bool parseDirectiveWord(unsigned Size, SMLoc L);
@@ -3058,21 +3057,19 @@ bool AArch64AsmParser::parseVectorList(OperandVector &Operands)
   if (Parser.getTok().is(AsmToken::Minus)) {
     Parser.Lex(); // Eat the minus.
 
-    //SMLoc Loc = getLoc();
+    SMLoc Loc = getLoc();
     StringRef NextKind;
     int64_t Reg = tryMatchVectorRegister(NextKind, true);
     if (Reg == -1)
       return true;
     // Any Kind suffices must match on all regs in the list.
     if (Kind != NextKind)
-      //return Error(Loc, "mismatched register size suffix");
-      return true;
+      return Error(Loc, "mismatched register size suffix");
 
     unsigned Space = (PrevReg < Reg) ? (Reg - PrevReg) : (Reg + 32 - PrevReg);
 
     if (Space == 0 || Space > 3) {
-      //return Error(Loc, "invalid number of vectors");
-      return true;
+      return Error(Loc, "invalid number of vectors");
     }
 
     Count += Space;
@@ -3081,21 +3078,19 @@ bool AArch64AsmParser::parseVectorList(OperandVector &Operands)
     while (Parser.getTok().is(AsmToken::Comma)) {
       Parser.Lex(); // Eat the comma token.
 
-      //SMLoc Loc = getLoc();
+      SMLoc Loc = getLoc();
       StringRef NextKind;
       int64_t Reg = tryMatchVectorRegister(NextKind, true);
       if (Reg == -1)
         return true;
       // Any Kind suffices must match on all regs in the list.
       if (Kind != NextKind)
-        //return Error(Loc, "mismatched register size suffix");
-        return true;
+        return Error(Loc, "mismatched register size suffix");
 
       // Registers must be incremental (with wraparound at 31)
       if (getContext().getRegisterInfo()->getEncodingValue(Reg) !=
           (getContext().getRegisterInfo()->getEncodingValue(PrevReg) + 1) % 32)
-       //return Error(Loc, "registers must be sequential");
-       return true;
+       return Error(Loc, "registers must be sequential");
 
       PrevReg = Reg;
       ++Count;
@@ -3103,13 +3098,11 @@ bool AArch64AsmParser::parseVectorList(OperandVector &Operands)
   }
 
   if (Parser.getTok().isNot(AsmToken::RCurly))
-    //return Error(getLoc(), "'}' expected");
-    return true;
+    return Error(getLoc(), "'}' expected");
   Parser.Lex(); // Eat the '}' token.
 
   if (Count > 4)
-    //return Error(S, "invalid number of vectors");
-    return true;
+    return Error(S, "invalid number of vectors");
 
   unsigned NumElements = 0;
   char ElementKind = 0;
@@ -3217,8 +3210,7 @@ bool AArch64AsmParser::parseOperand(OperandVector &Operands, bool isCondCode,
     SMLoc S = getLoc();
     const MCExpr *Expr;
     if (parseSymbolicImmVal(Expr))
-      //return Error(S, "invalid operand");
-      return true;
+      return Error(S, "invalid operand");
 
     SMLoc E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
     Operands.push_back(AArch64Operand::CreateImm(Expr, S, E, getContext()));
@@ -3317,8 +3309,7 @@ bool AArch64AsmParser::parseOperand(OperandVector &Operands, bool isCondCode,
   case AsmToken::Equal: {
     SMLoc Loc = Parser.getTok().getLoc();
     if (Mnemonic != "ldr") // only parse for ldr pseudo (e.g. ldr r0, =val)
-      //return Error(Loc, "unexpected token in operand");
-      return true;
+      return Error(Loc, "unexpected token in operand");
     Parser.Lex(); // Eat '='
     const MCExpr *SubExprVal;
     if (getParser().parseExpression(SubExprVal))
@@ -3326,8 +3317,7 @@ bool AArch64AsmParser::parseOperand(OperandVector &Operands, bool isCondCode,
 
     if (Operands.size() < 2 ||
         !static_cast<AArch64Operand &>(*Operands[1]).isReg())
-      //return Error(Loc, "Only valid when first operand is register");
-      return true;
+      return Error(Loc, "Only valid when first operand is register");
 
     bool IsXReg =
         AArch64MCRegisterClasses[AArch64::GPR64allRegClassID].contains(
@@ -3716,178 +3706,176 @@ bool AArch64AsmParser::showMatchError(SMLoc Loc, unsigned ErrCode)
 {
   switch (ErrCode) {
   case Match_MissingFeature:
-    //return Error(Loc,
-    //             "instruction requires a CPU feature not currently enabled");
+    Error(Loc,
+                 "instruction requires a CPU feature not currently enabled");
     return true;
   case Match_InvalidOperand:
-    //return Error(Loc, "invalid operand for instruction");
+    Error(Loc, "invalid operand for instruction");
     return true;
   case Match_InvalidSuffix:
-    //return Error(Loc, "invalid type suffix for instruction");
+    Error(Loc, "invalid type suffix for instruction");
     return true;
   case Match_InvalidCondCode:
-    //return Error(Loc, "expected AArch64 condition code");
+    Error(Loc, "expected AArch64 condition code");
     return true;
   case Match_AddSubRegExtendSmall:
-    //return Error(Loc,
-    //  "expected '[su]xt[bhw]' or 'lsl' with optional integer in range [0, 4]");
+    Error(Loc,
+      "expected '[su]xt[bhw]' or 'lsl' with optional integer in range [0, 4]");
     return true;
   case Match_AddSubRegExtendLarge:
-    //return Error(Loc,
-    //  "expected 'sxtx' 'uxtx' or 'lsl' with optional integer in range [0, 4]");
+    Error(Loc,
+      "expected 'sxtx' 'uxtx' or 'lsl' with optional integer in range [0, 4]");
     return true;
   case Match_AddSubSecondSource:
-    //return Error(Loc,
-    //  "expected compatible register, symbol or integer in range [0, 4095]");
+    Error(Loc,
+      "expected compatible register, symbol or integer in range [0, 4095]");
     return true;
   case Match_LogicalSecondSource:
-    //return Error(Loc, "expected compatible register or logical immediate");
+    Error(Loc, "expected compatible register or logical immediate");
     return true;
   case Match_InvalidMovImm32Shift:
-    //return Error(Loc, "expected 'lsl' with optional integer 0 or 16");
+    Error(Loc, "expected 'lsl' with optional integer 0 or 16");
     return true;
   case Match_InvalidMovImm64Shift:
-    //return Error(Loc, "expected 'lsl' with optional integer 0, 16, 32 or 48");
+    Error(Loc, "expected 'lsl' with optional integer 0, 16, 32 or 48");
     return true;
   case Match_AddSubRegShift32:
-    //return Error(Loc,
-    //   "expected 'lsl', 'lsr' or 'asr' with optional integer in range [0, 31]");
+    Error(Loc,
+       "expected 'lsl', 'lsr' or 'asr' with optional integer in range [0, 31]");
     return true;
   case Match_AddSubRegShift64:
-    //return Error(Loc,
-    //   "expected 'lsl', 'lsr' or 'asr' with optional integer in range [0, 63]");
+    Error(Loc,
+       "expected 'lsl', 'lsr' or 'asr' with optional integer in range [0, 63]");
     return true;
   case Match_InvalidFPImm:
-    //return Error(Loc,
-    //             "expected compatible register or floating-point constant");
+    Error(Loc,
+                 "expected compatible register or floating-point constant");
     return true;
   case Match_InvalidMemoryIndexedSImm9:
-    //return Error(Loc, "index must be an integer in range [-256, 255].");
+    Error(Loc, "index must be an integer in range [-256, 255].");
     return true;
   case Match_InvalidMemoryIndexed4SImm7:
-    //return Error(Loc, "index must be a multiple of 4 in range [-256, 252].");
+    Error(Loc, "index must be a multiple of 4 in range [-256, 252].");
     return true;
   case Match_InvalidMemoryIndexed8SImm7:
-    //return Error(Loc, "index must be a multiple of 8 in range [-512, 504].");
+    Error(Loc, "index must be a multiple of 8 in range [-512, 504].");
     return true;
   case Match_InvalidMemoryIndexed16SImm7:
-    //return Error(Loc, "index must be a multiple of 16 in range [-1024, 1008].");
+    Error(Loc, "index must be a multiple of 16 in range [-1024, 1008].");
     return true;
   case Match_InvalidMemoryWExtend8:
-    //return Error(Loc,
-    //             "expected 'uxtw' or 'sxtw' with optional shift of #0");
+    Error(Loc,
+                 "expected 'uxtw' or 'sxtw' with optional shift of #0");
     return true;
   case Match_InvalidMemoryWExtend16:
-    //return Error(Loc,
-    //             "expected 'uxtw' or 'sxtw' with optional shift of #0 or #1");
+    Error(Loc,
+                 "expected 'uxtw' or 'sxtw' with optional shift of #0 or #1");
     return true;
   case Match_InvalidMemoryWExtend32:
-    //return Error(Loc,
-    //             "expected 'uxtw' or 'sxtw' with optional shift of #0 or #2");
+    Error(Loc,
+                 "expected 'uxtw' or 'sxtw' with optional shift of #0 or #2");
     return true;
   case Match_InvalidMemoryWExtend64:
-    //return Error(Loc,
-    //             "expected 'uxtw' or 'sxtw' with optional shift of #0 or #3");
+    Error(Loc,
+                 "expected 'uxtw' or 'sxtw' with optional shift of #0 or #3");
     return true;
   case Match_InvalidMemoryWExtend128:
-    //return Error(Loc,
-    //             "expected 'uxtw' or 'sxtw' with optional shift of #0 or #4");
+    Error(Loc,
+                 "expected 'uxtw' or 'sxtw' with optional shift of #0 or #4");
     return true;
   case Match_InvalidMemoryXExtend8:
-    //return Error(Loc,
-    //             "expected 'lsl' or 'sxtx' with optional shift of #0");
+    Error(Loc,
+                 "expected 'lsl' or 'sxtx' with optional shift of #0");
     return true;
   case Match_InvalidMemoryXExtend16:
-    //return Error(Loc,
-    //             "expected 'lsl' or 'sxtx' with optional shift of #0 or #1");
+    Error(Loc,
+                 "expected 'lsl' or 'sxtx' with optional shift of #0 or #1");
     return true;
   case Match_InvalidMemoryXExtend32:
-    //return Error(Loc,
-    //             "expected 'lsl' or 'sxtx' with optional shift of #0 or #2");
+    Error(Loc,
+                 "expected 'lsl' or 'sxtx' with optional shift of #0 or #2");
     return true;
   case Match_InvalidMemoryXExtend64:
-    //return Error(Loc,
-    //             "expected 'lsl' or 'sxtx' with optional shift of #0 or #3");
+    Error(Loc,
+                 "expected 'lsl' or 'sxtx' with optional shift of #0 or #3");
     return true;
   case Match_InvalidMemoryXExtend128:
-    //return Error(Loc,
-    //             "expected 'lsl' or 'sxtx' with optional shift of #0 or #4");
+    Error(Loc,
+                 "expected 'lsl' or 'sxtx' with optional shift of #0 or #4");
     return true;
   case Match_InvalidMemoryIndexed1:
-    //return Error(Loc, "index must be an integer in range [0, 4095].");
+    Error(Loc, "index must be an integer in range [0, 4095].");
     return true;
   case Match_InvalidMemoryIndexed2:
-    //return Error(Loc, "index must be a multiple of 2 in range [0, 8190].");
+    Error(Loc, "index must be a multiple of 2 in range [0, 8190].");
     return true;
   case Match_InvalidMemoryIndexed4:
-    //return Error(Loc, "index must be a multiple of 4 in range [0, 16380].");
+    Error(Loc, "index must be a multiple of 4 in range [0, 16380].");
     return true;
   case Match_InvalidMemoryIndexed8:
-    //return Error(Loc, "index must be a multiple of 8 in range [0, 32760].");
+    Error(Loc, "index must be a multiple of 8 in range [0, 32760].");
     return true;
   case Match_InvalidMemoryIndexed16:
-    //return Error(Loc, "index must be a multiple of 16 in range [0, 65520].");
+    Error(Loc, "index must be a multiple of 16 in range [0, 65520].");
     return true;
   case Match_InvalidImm0_1:
-    //return Error(Loc, "immediate must be an integer in range [0, 1].");
+    Error(Loc, "immediate must be an integer in range [0, 1].");
     return true;
   case Match_InvalidImm0_7:
-    //return Error(Loc, "immediate must be an integer in range [0, 7].");
+    Error(Loc, "immediate must be an integer in range [0, 7].");
     return true;
   case Match_InvalidImm0_15:
-    //return Error(Loc, "immediate must be an integer in range [0, 15].");
+    Error(Loc, "immediate must be an integer in range [0, 15].");
     return true;
   case Match_InvalidImm0_31:
-    //return Error(Loc, "immediate must be an integer in range [0, 31].");
+    Error(Loc, "immediate must be an integer in range [0, 31].");
     return true;
   case Match_InvalidImm0_63:
-    //return Error(Loc, "immediate must be an integer in range [0, 63].");
+    Error(Loc, "immediate must be an integer in range [0, 63].");
     return true;
   case Match_InvalidImm0_127:
-    //return Error(Loc, "immediate must be an integer in range [0, 127].");
+    Error(Loc, "immediate must be an integer in range [0, 127].");
     return true;
   case Match_InvalidImm0_65535:
-    //return Error(Loc, "immediate must be an integer in range [0, 65535].");
+    Error(Loc, "immediate must be an integer in range [0, 65535].");
     return true;
   case Match_InvalidImm1_8:
-    //return Error(Loc, "immediate must be an integer in range [1, 8].");
+    Error(Loc, "immediate must be an integer in range [1, 8].");
     return true;
   case Match_InvalidImm1_16:
-    //return Error(Loc, "immediate must be an integer in range [1, 16].");
+    Error(Loc, "immediate must be an integer in range [1, 16].");
     return true;
   case Match_InvalidImm1_32:
-    //return Error(Loc, "immediate must be an integer in range [1, 32].");
+    Error(Loc, "immediate must be an integer in range [1, 32].");
     return true;
   case Match_InvalidImm1_64:
-    //return Error(Loc, "immediate must be an integer in range [1, 64].");
+    Error(Loc, "immediate must be an integer in range [1, 64].");
     return true;
   case Match_InvalidIndex1:
-    //return Error(Loc, "expected lane specifier '[1]'");
+    Error(Loc, "expected lane specifier '[1]'");
     return true;
   case Match_InvalidIndexB:
-    //return Error(Loc, "vector lane must be an integer in range [0, 15].");
+    Error(Loc, "vector lane must be an integer in range [0, 15].");
     return true;
   case Match_InvalidIndexH:
-    //return Error(Loc, "vector lane must be an integer in range [0, 7].");
+    Error(Loc, "vector lane must be an integer in range [0, 7].");
     return true;
   case Match_InvalidIndexS:
-    //return Error(Loc, "vector lane must be an integer in range [0, 3].");
+    Error(Loc, "vector lane must be an integer in range [0, 3].");
     return true;
   case Match_InvalidIndexD:
-    //return Error(Loc, "vector lane must be an integer in range [0, 1].");
+    Error(Loc, "vector lane must be an integer in range [0, 1].");
     return true;
   case Match_InvalidLabel:
-    //return Error(Loc, "expected label or encodable integer pc offset");
+    Error(Loc, "expected label or encodable integer pc offset");
     return true;
   case Match_MRS:
-    //return Error(Loc, "expected readable system register");
+    Error(Loc, "expected readable system register");
     return true;
   case Match_MSR:
-    //return Error(Loc, "expected writable system register or pstate");
-    return true;
+    return Error(Loc, "expected writable system register or pstate");
   case Match_MnemonicFail:
-    //return Error(Loc, "unrecognized instruction mnemonic");
-    return true;
+    return Error(Loc, "unrecognized instruction mnemonic");
   default:
     llvm_unreachable("unexpected error code!");
   }
@@ -3960,16 +3948,14 @@ bool AArch64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
           RegWidth = 32;
 
         if (LSB >= RegWidth) {
-          //return Error(LSBOp.getStartLoc(),
-          //             "expected integer in range [0, 31]");
           ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
-          return true;
+          return Error(LSBOp.getStartLoc(),
+                       "expected integer in range [0, 31]");
         }
         if (Width < 1 || Width > RegWidth) {
-          //return Error(WidthOp.getStartLoc(),
-          //             "expected integer in range [1, 32]");
           ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
-          return true;
+          return Error(WidthOp.getStartLoc(),
+                       "expected integer in range [1, 32]");
         }
 
         uint64_t ImmR = 0;
@@ -3981,9 +3967,9 @@ bool AArch64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
         uint64_t ImmS = Width - 1;
 
         if (ImmR != 0 && ImmS >= ImmR) {
-          //return Error(WidthOp.getStartLoc(),
-          //             "requested insert overflows register");
           ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
+          return Error(WidthOp.getStartLoc(),
+                       "requested insert overflows register");
           return true;
         }
 

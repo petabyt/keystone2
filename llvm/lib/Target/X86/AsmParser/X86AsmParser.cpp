@@ -982,7 +982,6 @@ bool X86AsmParser::ParseRegister(unsigned &RegNo,
     if (isParsingIntelSyntax()) return true;
     return Error(StartLoc, "invalid register name",
                  SMRange(StartLoc, EndLoc));
-    return true;
   }
 
   RegNo = MatchRegisterName(Tok.getString());
@@ -1006,10 +1005,9 @@ bool X86AsmParser::ParseRegister(unsigned &RegNo,
         X86MCRegisterClasses[X86::GR64RegClassID].contains(RegNo) ||
         X86II::isX86_64NonExtLowByteReg(RegNo) ||
         X86II::isX86_64ExtendedReg(RegNo))
-      //return Error(StartLoc, "register %"
-      //             + Tok.getString() + " is only available in 64-bit mode",
-      //             SMRange(StartLoc, EndLoc));
-      return true;
+      return Error(StartLoc, "register %"
+                   + Tok.getString() + " is only available in 64-bit mode",
+                   SMRange(StartLoc, EndLoc));
   }
 
   // Parse "%st" as "%st(0)" and "%st(1)", which is multiple tokens.
@@ -1025,8 +1023,7 @@ bool X86AsmParser::ParseRegister(unsigned &RegNo,
 
     const AsmToken &IntTok = Parser.getTok();
     if (IntTok.isNot(AsmToken::Integer))
-      //return Error(IntTok.getLoc(), "expected stack index");
-      return true;
+      return Error(IntTok.getLoc(), "expected stack index");
     bool valid;
     unsigned r = IntTok.getIntVal(valid);
     if (!valid)
@@ -1040,12 +1037,11 @@ bool X86AsmParser::ParseRegister(unsigned &RegNo,
     case 5: RegNo = X86::ST5; break;
     case 6: RegNo = X86::ST6; break;
     case 7: RegNo = X86::ST7; break;
-    default: return true; //return Error(IntTok.getLoc(), "invalid stack index");
+    default: return Error(IntTok.getLoc(), "invalid stack index");
     }
 
     if (getParser().Lex().isNot(AsmToken::RParen))
-      //return Error(Parser.getTok().getLoc(), "expected ')'");
-      return true;
+      return Error(Parser.getTok().getLoc(), "expected ')'");
 
     EndLoc = Parser.getTok().getEndLoc();
     Parser.Lex(); // Eat ')'
@@ -1078,9 +1074,8 @@ bool X86AsmParser::ParseRegister(unsigned &RegNo,
 
   if (RegNo == 0) {
     if (isParsingIntelSyntax()) return true;
-    //return Error(StartLoc, "invalid register name",
-    //             SMRange(StartLoc, EndLoc));
-    return true;
+    return Error(StartLoc, "invalid register name",
+                 SMRange(StartLoc, EndLoc));
   }
 
   Parser.Lex(); // Eat identifier token.
@@ -1186,9 +1181,8 @@ bool X86AsmParser::VerifyAndAdjustOperands(OperandVector &OrigOperands,
         // bases are of the same register class
         if (RegClassID != -1 &&
             !X86MCRegisterClasses[RegClassID].contains(OrigReg)) {
-          //return Error(OrigOp.getStartLoc(),
-          //             "mismatching source and destination index registers");
-          return true;
+          return Error(OrigOp.getStartLoc(),
+                       "mismatching source and destination index registers");
         }
 
         if (X86MCRegisterClasses[X86::GR64RegClassID].contains(OrigReg))
@@ -1412,8 +1406,7 @@ bool X86AsmParser::ParseIntelExpression(IntelExprStateMachine &SM, SMLoc &End)
         Done = true;
         break;
       }
-      //return Error(Tok.getLoc(), "unknown token in expression");
-      return true;
+      return Error(Tok.getLoc(), "unknown token in expression");
     }
     case AsmToken::EndOfStatement: {
       Done = true;
@@ -1435,8 +1428,7 @@ bool X86AsmParser::ParseIntelExpression(IntelExprStateMachine &SM, SMLoc &End)
       } else {
         if (!isParsingInlineAsm()) {
           if (getParser().parsePrimaryExpr(Val, End))
-            //return Error(Tok.getLoc(), "Unexpected identifier!");
-            return true;
+            return Error(Tok.getLoc(), "Unexpected identifier!");
         } else {
           // This is a dot operator, not an adjacent identifier.
           if (Identifier.find('.') != StringRef::npos &&
@@ -1453,15 +1445,14 @@ bool X86AsmParser::ParseIntelExpression(IntelExprStateMachine &SM, SMLoc &End)
         UpdateLocLex = false;
         break;
       }
-      //return Error(Tok.getLoc(), "Unexpected identifier!");
-      return true;
+      return Error(Tok.getLoc(), "Unexpected identifier!");
     }
     case AsmToken::Integer: {
       StringRef ErrMsg;
       if (isParsingInlineAsm() && SM.getAddImmPrefix())
         InstInfo->AsmRewrites->emplace_back(AOK_ImmPrefix, Tok.getLoc());
       // Look for 'b' or 'f' following an Integer as a directional label
-      //SMLoc Loc = getTok().getLoc();
+      SMLoc Loc = getTok().getLoc();
       bool valid;
       int64_t IntVal = getTok().getIntVal(valid);
       if (!valid)
@@ -1480,20 +1471,17 @@ bool X86AsmParser::ParseIntelExpression(IntelExprStateMachine &SM, SMLoc &End)
           const MCExpr *Val =
               MCSymbolRefExpr::create(Sym, Variant, getContext());
           if (IDVal == "b" && Sym->isUndefined())
-            //return Error(Loc, "invalid reference to undefined symbol");
-            return true;
+            return Error(Loc, "invalid reference to undefined symbol");
           StringRef Identifier = Sym->getName();
           SM.onIdentifierExpr(Val, Identifier);
           End = consumeToken();
         } else {
           if (SM.onInteger(IntVal, ErrMsg))
-            //return Error(Loc, ErrMsg);
-            return true;
+            return Error(Loc, ErrMsg);
         }
       } else {
         if (SM.onInteger(IntVal, ErrMsg))
-          //return Error(Loc, ErrMsg);
-          return true;
+          return Error(Loc, ErrMsg);
       }
       break;
     }
@@ -1515,8 +1503,7 @@ bool X86AsmParser::ParseIntelExpression(IntelExprStateMachine &SM, SMLoc &End)
     case AsmToken::RParen:  SM.onRParen(); break;
     }
     if (SM.hadError())
-      //return Error(Tok.getLoc(), "unknown token in expression");
-      return true;
+      return Error(Tok.getLoc(), "unknown token in expression");
 
     if (!Done && UpdateLocLex)
       End = consumeToken();
@@ -1823,8 +1810,7 @@ bool X86AsmParser::ParseIntelDotOperator(const MCExpr *Disp,
   if (const MCConstantExpr *OrigDisp = dyn_cast<MCConstantExpr>(Disp))
     OrigDispVal = OrigDisp->getValue();
   else
-    //return Error(Tok.getLoc(), "Non-constant offsets are not supported!");
-    return true;
+    return Error(Tok.getLoc(), "Non-constant offsets are not supported!");
 
   // Drop the optional '.'.
   StringRef DotDispStr = Tok.getString();
@@ -1845,12 +1831,10 @@ bool X86AsmParser::ParseIntelDotOperator(const MCExpr *Disp,
     std::pair<StringRef, StringRef> BaseMember = DotDispStr.split('.');
     if (SemaCallback->LookupInlineAsmField(BaseMember.first, BaseMember.second,
                                            DotDisp))
-      //return Error(Tok.getLoc(), "Unable to lookup field reference!");
-      return true;
+      return Error(Tok.getLoc(), "Unable to lookup field reference!");
     DotDispVal = DotDisp;
   } else
-    //return Error(Tok.getLoc(), "Unexpected token type!");
-    return true;
+    return Error(Tok.getLoc(), "Unexpected token type!");
 
   if (isParsingInlineAsm() && Tok.is(AsmToken::Identifier)) {
     SMLoc Loc = SMLoc::getFromPointer(DotDispStr.data());
@@ -2640,10 +2624,9 @@ bool X86AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
     }
 
     if (getLexer().isNot(AsmToken::EndOfStatement) && getLexer().isNot(AsmToken::Eof)) {
-      //return ErrorAndEatStatement(getLexer().getLoc(),
-      //                            "unexpected token in argument list");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
-      return true;
+      return ErrorAndEatStatement(getLexer().getLoc(),
+                                  "unexpected token in argument list");
     }
    }
 
@@ -3000,7 +2983,7 @@ void X86AsmParser::MatchFPUWaitAlias(SMLoc IDLoc, X86Operand &Op,
 bool X86AsmParser::ErrorMissingFeature(SMLoc IDLoc, uint64_t ErrorInfo,
                                        bool MatchingInlineAsm) {
   assert(ErrorInfo && "Unknown missing feature!");
-  //ArrayRef<SMRange> EmptyRanges = None;
+  ArrayRef<SMRange> EmptyRanges = None;
   SmallString<126> Msg;
   raw_svector_ostream OS(Msg);
   OS << "instruction requires:";
@@ -3010,8 +2993,7 @@ bool X86AsmParser::ErrorMissingFeature(SMLoc IDLoc, uint64_t ErrorInfo,
       OS << ' ' << getSubtargetFeatureName(ErrorInfo & Mask);
     Mask <<= 1;
   }
-  //return Error(IDLoc, OS.str(), EmptyRanges, MatchingInlineAsm);
-  return true;
+  return Error(IDLoc, OS.str(), EmptyRanges, MatchingInlineAsm);
 }
 
 bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
@@ -3163,25 +3145,22 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
       if (ErrorInfo >= Operands.size()) {
           //printf("*** >>> InvalidOperand 22\n");
           ErrorCode = KS_ERR_ASM_X86_INVALIDOPERAND;
-          //return Error(IDLoc, "too few operands for instruction",
-          //             EmptyRanges, MatchingInlineAsm);
-          return true;
+          return Error(IDLoc, "too few operands for instruction",
+                       EmptyRanges, MatchingInlineAsm);
       }
 
       X86Operand &Operand = (X86Operand &)*Operands[ErrorInfo];
       if (Operand.getStartLoc().isValid()) {
-        //SMRange OperandRange = Operand.getLocRange();
-        //return Error(Operand.getStartLoc(), "invalid operand for instruction",
-        //             OperandRange, MatchingInlineAsm);
-        return true;
+        SMRange OperandRange = Operand.getLocRange();
+        return Error(Operand.getStartLoc(), "invalid operand for instruction",
+                     OperandRange, MatchingInlineAsm);
       }
     }
 
     //printf("*** >>> InvalidOperand 33\n");
     ErrorCode = KS_ERR_ASM_X86_INVALIDOPERAND;
-    //return Error(IDLoc, "invalid operand for instruction", EmptyRanges,
-    //             MatchingInlineAsm);
-    return true;
+    return Error(IDLoc, "invalid operand for instruction", EmptyRanges,
+                 MatchingInlineAsm);
   }
 
   // If one instruction matched with a missing feature, report this as a
@@ -3190,9 +3169,8 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
                  Match_MissingFeature) == 1) {
     ErrorInfo = ErrorInfoMissingFeature;
     ErrorCode = KS_ERR_ASM_X86_MISSINGFEATURE;
-    //return ErrorMissingFeature(IDLoc, ErrorInfoMissingFeature,
-    //                           MatchingInlineAsm);
-    return true;
+    return ErrorMissingFeature(IDLoc, ErrorInfoMissingFeature,
+                               MatchingInlineAsm);
   }
 
   // If one instruction matched with an invalid operand, report this as an
@@ -3201,9 +3179,8 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
                  Match_InvalidOperand) == 1) {
     //printf("*** >>> InvalidOperand 44\n");
     ErrorCode = KS_ERR_ASM_X86_INVALIDOPERAND;
-    //return Error(IDLoc, "invalid operand for instruction", EmptyRanges,
-    //             MatchingInlineAsm);
-    return true;
+    return Error(IDLoc, "invalid operand for instruction", EmptyRanges,
+                 MatchingInlineAsm);
   }
 
   // If all of these were an outright failure, report it in a useless way.
@@ -3330,16 +3307,13 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
   } else if (NumSuccessfulMatches > 1) {
     assert(UnsizedMemOp &&
            "multiple matches only possible with unsized memory operands");
-    //ArrayRef<SMRange> Ranges =
-    //    MatchingInlineAsm ? EmptyRanges : UnsizedMemOp->getLocRange();
-
-    //return Error(UnsizedMemOp->getStartLoc(),
-    //             "ambiguous operand size for instruction '" + Mnemonic + "\'",
-    //             Ranges, MatchingInlineAsm);
-
-    //printf("*** >>> InvalidOperand 55\n");
     ErrorCode = KS_ERR_ASM_X86_INVALIDOPERAND;
-    return true;
+    ArrayRef<SMRange> Ranges =
+        MatchingInlineAsm ? EmptyRanges : UnsizedMemOp->getLocRange();
+
+    return Error(UnsizedMemOp->getStartLoc(),
+                 "ambiguous operand size for instruction '" + Mnemonic + "\'",
+                 Ranges, MatchingInlineAsm);
   }
 
   // If one instruction matched with a missing feature, report this as a
@@ -3348,9 +3322,8 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
                  Match_MissingFeature) == 1) {
     ErrorInfo = ErrorInfoMissingFeature;
     ErrorCode = KS_ERR_ASM_X86_MISSINGFEATURE;
-    //return ErrorMissingFeature(IDLoc, ErrorInfoMissingFeature,
-    //                           MatchingInlineAsm);
-    return true;
+    return ErrorMissingFeature(IDLoc, ErrorInfoMissingFeature,
+                               MatchingInlineAsm);
   }
 
   // If one instruction matched with an invalid operand, report this as an
@@ -3361,14 +3334,12 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
     ErrorCode = KS_ERR_ASM_X86_INVALIDOPERAND;
     return Error(IDLoc, "invalid operand for instruction", EmptyRanges,
                  MatchingInlineAsm);
-    return true;
   }
 
   // If all of these were an outright failure, report it in a useless way.
   ErrorCode = KS_ERR_ASM_X86_MNEMONICFAIL;
   return Error(IDLoc, "unknown instruction mnemonic", EmptyRanges,
                MatchingInlineAsm);
-  return true;
 }
 
 bool X86AsmParser::OmitRegisterFromClobberLists(unsigned RegNo) {
@@ -3390,7 +3361,6 @@ bool X86AsmParser::ParseDirective(AsmToken DirectiveID) {
         return Error(DirectiveID.getLoc(), "'.att_syntax noprefix' is not "
                                            "supported: registers must have a "
                                            "'%' prefix in .att_syntax");
-        return true;
     }
     getParser().setAssemblerDialect(0);
     return false;
@@ -3403,7 +3373,6 @@ bool X86AsmParser::ParseDirective(AsmToken DirectiveID) {
         return Error(DirectiveID.getLoc(), "'.intel_syntax prefix' is not "
                                            "supported: registers must not have "
                                            "a '%' prefix in .intel_syntax");
-        return true;
     }
     return false;
   } else if (IDVal == ".even")
@@ -3441,16 +3410,15 @@ bool X86AsmParser::ParseDirectiveWord(unsigned Size, SMLoc L) {
         return false;
 
       if (const auto *MCE = dyn_cast<MCConstantExpr>(Value)) {
-        bool Error;
+        bool Error2;
         //assert(Size <= 8 && "Invalid size");
         if (Size > 8)
             return true;
         uint64_t IntValue = MCE->getValue();
         if (!isUIntN(8 * Size, IntValue) && !isIntN(8 * Size, IntValue))
-          //return Error(ExprLoc, "literal value out of range for directive");
-          return true;
-        getStreamer().EmitIntValue(IntValue, Size, Error);
-        if (Error)
+          return Error(ExprLoc, "literal value out of range for directive");
+        getStreamer().EmitIntValue(IntValue, Size, Error2);
+        if (Error2)
             return true;
       } else {
         getStreamer().EmitValue(Value, Size, ExprLoc);

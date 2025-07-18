@@ -3062,9 +3062,10 @@ int ARMAsmParser::tryParseShiftRegister(OperandVector &Operands)
   // register operand instead.
   std::unique_ptr<ARMOperand> PrevOp(
       (ARMOperand *)Operands.pop_back_val().release());
-  if (!PrevOp->isReg())
-    //return Error(PrevOp->getStartLoc(), "shift must be of a register");
+  if (!PrevOp->isReg()) {
+    Error(PrevOp->getStartLoc(), "shift must be of a register");
     return -1;
+  }
   int SrcReg = PrevOp->getReg();
 
   SMLoc EndLoc;
@@ -3170,12 +3171,10 @@ bool ARMAsmParser::tryParseRegisterWithWriteBack(OperandVector &Operands)
       return true;
     const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(ImmVal);
     if (!MCE)
-      //return TokError("immediate value expected for vector index");
-      return true;
+      return TokError("immediate value expected for vector index");
 
     if (Parser.getTok().isNot(AsmToken::RBrac))
-      //return Error(Parser.getTok().getLoc(), "']' expected");
-      return true;
+      return Error(Parser.getTok().getLoc(), "']' expected");
 
     SMLoc E = Parser.getTok().getEndLoc();
     Parser.Lex(); // Eat right bracket token.
@@ -3413,8 +3412,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
   // this is a list of.
   int Reg = tryParseRegister();
   if (Reg == -1)
-    //return Error(RegLoc, "register expected");
-    return true;
+    return Error(RegLoc, "register expected");
 
   // The reglist instructions have at most 16 registers, so reserve
   // space for that many.
@@ -3436,8 +3434,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
   else if (ARMMCRegisterClasses[ARM::SPRRegClassID].contains(Reg))
     RC = &ARMMCRegisterClasses[ARM::SPRRegClassID];
   else
-    //return Error(RegLoc, "invalid register in register list");
-    return true;
+    return Error(RegLoc, "invalid register in register list");
 
   // Store the register.
   EReg = MRI->getEncodingValue(Reg);
@@ -3450,11 +3447,10 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
          Parser.getTok().is(AsmToken::Minus)) {
     if (Parser.getTok().is(AsmToken::Minus)) {
       Parser.Lex(); // Eat the minus.
-      //SMLoc AfterMinusLoc = Parser.getTok().getLoc();
+      SMLoc AfterMinusLoc = Parser.getTok().getLoc();
       int EndReg = tryParseRegister();
       if (EndReg == -1)
-        //return Error(AfterMinusLoc, "register expected");
-        return true;
+        return Error(AfterMinusLoc, "register expected");
       // Allow Q regs and just interpret them as the two D sub-registers.
       if (ARMMCRegisterClasses[ARM::QPRRegClassID].contains(EndReg))
         EndReg = getDRegFromQReg(EndReg) + 1;
@@ -3464,12 +3460,10 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
         continue;
       // The register must be in the same register class as the first.
       if (!RC->contains(EndReg))
-        //return Error(AfterMinusLoc, "invalid register in register list");
-        return true;
+        return Error(AfterMinusLoc, "invalid register in register list");
       // Ranges must go from low to high.
       if (MRI->getEncodingValue(Reg) > MRI->getEncodingValue(EndReg))
-        //return Error(AfterMinusLoc, "bad range in register list");
-        return true;
+        return Error(AfterMinusLoc, "bad range in register list");
 
       // Add all the registers in the range to the register list.
       while (Reg != EndReg) {
@@ -3485,8 +3479,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
     const AsmToken RegTok = Parser.getTok();
     Reg = tryParseRegister();
     if (Reg == -1)
-      //return Error(RegLoc, "register expected");
-      return true;
+      return Error(RegLoc, "register expected");
     // Allow Q regs and just interpret them as the two D sub-registers.
     bool isQReg = false;
     if (ARMMCRegisterClasses[ARM::QPRRegClassID].contains(Reg)) {
@@ -3495,15 +3488,13 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
     }
     // The register must be in the same register class as the first.
     if (!RC->contains(Reg))
-      //return Error(RegLoc, "invalid register in register list");
-      return true;
+      return Error(RegLoc, "invalid register in register list");
     // List must be monotonically increasing.
     if (MRI->getEncodingValue(Reg) < MRI->getEncodingValue(OldReg)) {
       if (ARMMCRegisterClasses[ARM::GPRRegClassID].contains(Reg))
         Warning(RegLoc, "register list not in ascending order");
       else
-        //return Error(RegLoc, "register list not in ascending order");
-        return true;
+        return Error(RegLoc, "register list not in ascending order");
     }
     if (MRI->getEncodingValue(Reg) == MRI->getEncodingValue(OldReg)) {
       Warning(RegLoc, "duplicated register (" + RegTok.getString() +
@@ -3513,8 +3504,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
     // VFP register lists must also be contiguous.
     if (RC != &ARMMCRegisterClasses[ARM::GPRRegClassID] &&
         Reg != OldReg + 1)
-      //return Error(RegLoc, "non-contiguous register range");
-      return true;
+      return Error(RegLoc, "non-contiguous register range");
     EReg = MRI->getEncodingValue(Reg);
     Registers.push_back(std::pair<unsigned, unsigned>(EReg, Reg));
     if (isQReg) {
@@ -3524,8 +3514,7 @@ bool ARMAsmParser::parseRegisterList(OperandVector &Operands)
   }
 
   if (Parser.getTok().isNot(AsmToken::RCurly))
-    //return Error(Parser.getTok().getLoc(), "'}' expected");
-    return true;
+    return Error(Parser.getTok().getLoc(), "'}' expected");
   SMLoc E = Parser.getTok().getEndLoc();
   Parser.Lex(); // Eat '}' token.
 
@@ -4873,18 +4862,16 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands)
   S = Parser.getTok().getLoc();
   Parser.Lex(); // Eat left bracket token.
 
-  //const AsmToken &BaseRegTok = Parser.getTok();
+  const AsmToken &BaseRegTok = Parser.getTok();
   int BaseRegNum = tryParseRegister();
   if (BaseRegNum == -1)
-    //return Error(BaseRegTok.getLoc(), "register expected");
-    return true;
+    return Error(BaseRegTok.getLoc(), "register expected");
 
   // The next token must either be a comma, a colon or a closing bracket.
   const AsmToken &Tok = Parser.getTok();
   if (!Tok.is(AsmToken::Colon) && !Tok.is(AsmToken::Comma) &&
       !Tok.is(AsmToken::RBrac))
-    //return Error(Tok.getLoc(), "malformed memory operand");
-    return true;
+    return Error(Tok.getLoc(), "malformed memory operand");
 
   if (Tok.is(AsmToken::RBrac)) {
     E = Tok.getEndLoc();
@@ -4925,15 +4912,13 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands)
     // instructions.
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Expr);
     if (!CE)
-      //return Error (E, "constant expression expected");
-      return true;
+      return Error (E, "constant expression expected");
 
     unsigned Align = 0;
     switch (CE->getValue()) {
     default:
-      //return Error(E,
-      //             "alignment specifier must be 16, 32, 64, 128, or 256 bits");
-      return true;
+      return Error(E,
+                   "alignment specifier must be 16, 32, 64, 128, or 256 bits");
     case 16:  Align = 2; break;
     case 32:  Align = 4; break;
     case 64:  Align = 8; break;
@@ -4943,8 +4928,7 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands)
 
     // Now we should have the closing ']'
     if (Parser.getTok().isNot(AsmToken::RBrac))
-      //return Error(Parser.getTok().getLoc(), "']' expected");
-      return true;
+      return Error(Parser.getTok().getLoc(), "']' expected");
     E = Parser.getTok().getEndLoc();
     Parser.Lex(); // Eat right bracket token.
 
@@ -4993,8 +4977,7 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands)
 
     // Now we should have the closing ']'
     if (Parser.getTok().isNot(AsmToken::RBrac))
-      //return Error(Parser.getTok().getLoc(), "']' expected");
-      return true;
+      return Error(Parser.getTok().getLoc(), "']' expected");
     E = Parser.getTok().getEndLoc();
     Parser.Lex(); // Eat right bracket token.
 
@@ -5027,8 +5010,7 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands)
   E = Parser.getTok().getLoc();
   int OffsetRegNum = tryParseRegister();
   if (OffsetRegNum == -1)
-    //return Error(E, "register expected");
-    return true;
+    return Error(E, "register expected");
 
   // If there's a shift operator, handle it.
   ARM_AM::ShiftOpc ShiftType = ARM_AM::no_shift;
@@ -5041,8 +5023,7 @@ bool ARMAsmParser::parseMemory(OperandVector &Operands)
 
   // Now we should have the closing ']'
   if (Parser.getTok().isNot(AsmToken::RBrac))
-    //return Error(Parser.getTok().getLoc(), "']' expected");
-    return true;
+    return Error(Parser.getTok().getLoc(), "']' expected");
   E = Parser.getTok().getEndLoc();
   Parser.Lex(); // Eat right bracket token.
 
@@ -5084,8 +5065,7 @@ bool ARMAsmParser::parseMemRegOffsetShift(ARM_AM::ShiftOpc &St,
   else if (ShiftName == "rrx" || ShiftName == "RRX")
     St = ARM_AM::rrx;
   else
-    //return Error(Loc, "illegal shift operator");
-    return true;
+    return Error(Loc, "illegal shift operator");
   Parser.Lex(); // Eat shift type token.
 
   // rrx stands alone.
@@ -5096,8 +5076,7 @@ bool ARMAsmParser::parseMemRegOffsetShift(ARM_AM::ShiftOpc &St,
     const AsmToken &HashTok = Parser.getTok();
     if (HashTok.isNot(AsmToken::Hash) &&
         HashTok.isNot(AsmToken::Dollar))
-      //return Error(HashTok.getLoc(), "'#' expected");
-      return true;
+      return Error(HashTok.getLoc(), "'#' expected");
     Parser.Lex(); // Eat hash token.
 
     const MCExpr *Expr;
@@ -5108,14 +5087,12 @@ bool ARMAsmParser::parseMemRegOffsetShift(ARM_AM::ShiftOpc &St,
     // lsr, asr: 0 <= imm <= 32
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Expr);
     if (!CE)
-      //return Error(Loc, "shift amount must be an immediate");
-      return true;
+      return Error(Loc, "shift amount must be an immediate");
     int64_t Imm = CE->getValue();
     if (Imm < 0 ||
         ((St == ARM_AM::lsl || St == ARM_AM::ror) && Imm > 31) ||
         ((St == ARM_AM::lsr || St == ARM_AM::asr) && Imm > 32))
-      //return Error(Loc, "immediate shift value out of range");
-      return true;
+      return Error(Loc, "immediate shift value out of range");
     // If <ShiftTy> #0, turn it into a no_shift.
     if (Imm == 0)
       St = ARM_AM::lsl;
@@ -5339,9 +5316,8 @@ bool ARMAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic, uns
   case AsmToken::Equal: {
     S = Parser.getTok().getLoc();
     if (Mnemonic != "ldr") { // only parse for ldr pseudo (e.g. ldr r0, =val)
-        //return Error(S, "unexpected token in operand");
         ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
-        return true;
+        return Error(S, "unexpected token in operand");
     }
 
     Parser.Lex(); // Eat '='
@@ -5908,9 +5884,8 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // In Thumb1, only the branch (B) instruction can be predicated.
   if (isThumbOne() && PredicationCode != ARMCC::AL && Mnemonic != "b") {
     Parser.eatToEndOfStatement();
-    //return Error(NameLoc, "conditional execution not supported in Thumb1");
     ErrorCode = KS_ERR_ASM_MNEMONICFAIL;
-    return true;
+    return Error(NameLoc, "conditional execution not supported in Thumb1");
   }
 
   Operands.push_back(ARMOperand::CreateToken(Mnemonic, NameLoc));
@@ -5924,18 +5899,16 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
     SMLoc Loc = SMLoc::getFromPointer(NameLoc.getPointer() + 2);
     if (ITMask.size() > 3) {
       Parser.eatToEndOfStatement();
-      //return Error(Loc, "too many conditions on IT instruction");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
-      return true;
+      return Error(Loc, "too many conditions on IT instruction");
     }
     unsigned Mask = 8;
     for (unsigned i = ITMask.size(); i != 0; --i) {
       char pos = ITMask[i - 1];
       if (pos != 't' && pos != 'e') {
         Parser.eatToEndOfStatement();
-        //return Error(Loc, "illegal IT block condition mask '" + ITMask + "'");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
-        return true;
+        return Error(Loc, "illegal IT block condition mask '" + ITMask + "'");
       }
       Mask >>= 1;
       if (ITMask[i - 1] == 't')
@@ -5961,8 +5934,8 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // error.
   if (!CanAcceptCarrySet && CarrySetting) {
     Parser.eatToEndOfStatement();
-    //return Error(NameLoc, "instruction '" + Mnemonic +
-    //             "' can not set flags, but 's' suffix specified");
+    Error(NameLoc, "instruction '" + Mnemonic +
+          "' can not set flags, but 's' suffix specified");
     ErrorCode = KS_ERR_ASM_MNEMONICFAIL;
     return true;
   }
@@ -5970,8 +5943,8 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // error.
   if (!CanAcceptPredicationCode && PredicationCode != ARMCC::AL) {
     Parser.eatToEndOfStatement();
-    //return Error(NameLoc, "instruction '" + Mnemonic +
-    //             "' is not predicable, but condition code specified");
+    Error(NameLoc, "instruction '" + Mnemonic +
+          "' is not predicable, but condition code specified");
     ErrorCode = KS_ERR_ASM_MNEMONICFAIL;
     return true;
   }
@@ -5997,7 +5970,7 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
           MCConstantExpr::create(ProcessorIMod, getContext()),
                                  NameLoc, NameLoc));
   } else if (Mnemonic == "cps" && isMClass()) {
-    //return Error(NameLoc, "instruction 'cps' requires effect for M-class");
+    Error(NameLoc, "instruction 'cps' requires effect for M-class");
     ErrorCode = KS_ERR_ASM_MNEMONICFAIL;
     return true;
   }
@@ -6016,10 +5989,10 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
 
     // For for ARM mode generate an error if the .n qualifier is used.
     if (ExtraToken == ".n" && !isThumb()) {
-      //SMLoc Loc = SMLoc::getFromPointer(NameLoc.getPointer() + Start);
+      SMLoc Loc = SMLoc::getFromPointer(NameLoc.getPointer() + Start);
       Parser.eatToEndOfStatement();
-      //return Error(Loc, "instruction with .n (narrow) qualifier not allowed in "
-      //             "arm mode");
+      Error(Loc, "instruction with .n (narrow) qualifier not allowed in "
+            "arm mode");
       ErrorCode = KS_ERR_ASM_MNEMONICFAIL;
       return true;
     }
@@ -6055,9 +6028,9 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   }
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //SMLoc Loc = getLexer().getLoc();
+    SMLoc Loc = getLexer().getLoc();
     Parser.eatToEndOfStatement();
-    //return Error(Loc, "unexpected token in argument list");
+    Error(Loc, "unexpected token in argument list");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return true;
   }
@@ -6067,14 +6040,14 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   if (RequireVFPRegisterListCheck) {
     ARMOperand &Op = static_cast<ARMOperand &>(*Operands.back());
     if (AcceptSinglePrecisionOnly && !Op.isSPRRegList()) {
-      //return Error(Op.getStartLoc(),
-      //             "VFP/Neon single precision register expected");
+      Error(Op.getStartLoc(),
+            "VFP/Neon single precision register expected");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return true;
     }
     if (AcceptDoublePrecisionOnly && !Op.isDPRRegList()) {
-      //return Error(Op.getStartLoc(),
-      //             "VFP/Neon double precision register expected");
+      Error(Op.getStartLoc(),
+            "VFP/Neon double precision register expected");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return true;
     }
@@ -6232,26 +6205,23 @@ bool ARMAsmParser::validatetLDMRegList(const MCInst &Inst,
                                        const OperandVector &Operands,
                                        unsigned ListNo, bool IsARPop)
 {
-  //const ARMOperand &Op = static_cast<const ARMOperand &>(*Operands[ListNo]);
-  //bool HasWritebackToken = Op.isToken() && Op.getToken() == "!";
+  const ARMOperand &Op = static_cast<const ARMOperand &>(*Operands[ListNo]);
+  bool HasWritebackToken = Op.isToken() && Op.getToken() == "!";
 
   bool ListContainsSP = listContainsReg(Inst, ListNo, ARM::SP);
   bool ListContainsLR = listContainsReg(Inst, ListNo, ARM::LR);
   bool ListContainsPC = listContainsReg(Inst, ListNo, ARM::PC);
 
   if (!IsARPop && ListContainsSP)
-    //return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
-    //             "SP may not be in the register list");
-    return true;
+    return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
+                 "SP may not be in the register list");
   else if (ListContainsPC && ListContainsLR)
-    //return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
-    //             "PC and LR may not be in the register list simultaneously");
-    return true;
+    return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
+                 "PC and LR may not be in the register list simultaneously");
   else if (inITBlock() && !lastInITBlock() && ListContainsPC)
-    //return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
-    //             "instruction must be outside of IT block or the last "
-    //             "instruction in an IT block");
-    return true;
+    return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
+                 "instruction must be outside of IT block or the last "
+                 "instruction in an IT block");
   return false;
 }
 
@@ -6259,24 +6229,22 @@ bool ARMAsmParser::validatetSTMRegList(const MCInst &Inst,
                                        const OperandVector &Operands,
                                        unsigned ListNo)
 {
-  //const ARMOperand &Op = static_cast<const ARMOperand &>(*Operands[ListNo]);
-  //bool HasWritebackToken = Op.isToken() && Op.getToken() == "!";
+  const ARMOperand &Op = static_cast<const ARMOperand &>(*Operands[ListNo]);
+  bool HasWritebackToken = Op.isToken() && Op.getToken() == "!";
 
   bool ListContainsSP = listContainsReg(Inst, ListNo, ARM::SP);
   bool ListContainsPC = listContainsReg(Inst, ListNo, ARM::PC);
 
   if (ListContainsSP && ListContainsPC)
-    //return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
-    //             "SP and PC may not be in the register list");
-    return true;
+    return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
+                "SP and PC may not be in the register list");
   else if (ListContainsSP)
-    //return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
-    //             "SP may not be in the register list");
-    return true;
+    return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
+                "SP may not be in the register list");
   else if (ListContainsPC)
-    //return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
-    //             "PC may not be in the register list");
-    return true;
+    return Error(Operands[ListNo + HasWritebackToken]->getStartLoc(),
+                "PC may not be in the register list");
+
   return false;
 }
 
@@ -6285,7 +6253,7 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
                                        const OperandVector &Operands)
 {
   const MCInstrDesc &MCID = MII.get(Inst.getOpcode());
-  //SMLoc Loc = Operands[0]->getStartLoc();
+  SMLoc Loc = Operands[0]->getStartLoc();
 
   // Check the IT block state first.
   // NOTE: BKPT and HLT instructions have the interesting property of being
@@ -6298,8 +6266,7 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
       Bit = (ITState.Mask >> (5 - ITState.CurPosition)) & 1;
     // The instruction must be predicable.
     if (!MCID.isPredicable())
-      //return Error(Loc, "instructions in IT block must be predicable");
-      return true;
+      return Error(Loc, "instructions in IT block must be predicable");
     unsigned Cond = Inst.getOperand(MCID.findFirstPredOperandIdx()).getImm();
     unsigned ITCond = Bit ? ITState.Cond :
       ARMCC::getOppositeCondition(ITState.Cond);
@@ -6309,19 +6276,17 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
       for (unsigned I = 1; I < Operands.size(); ++I)
         if (static_cast<ARMOperand &>(*Operands[I]).isCondCode())
           CondLoc = Operands[I]->getStartLoc();
-      //return Error(CondLoc, "incorrect condition in IT block; got '" +
-      //             StringRef(ARMCondCodeToString(ARMCC::CondCodes(Cond))) +
-      //             "', but expected '" +
-      //             ARMCondCodeToString(ARMCC::CondCodes(ITCond)) + "'");
-      return true;
+      return Error(CondLoc, "incorrect condition in IT block; got '" +
+                   StringRef(ARMCondCodeToString(ARMCC::CondCodes(Cond))) +
+                   "', but expected '" +
+                   ARMCondCodeToString(ARMCC::CondCodes(ITCond)) + "'");
     }
   // Check for non-'al' condition codes outside of the IT block.
   } else if (isThumbTwo() && MCID.isPredicable() &&
              Inst.getOperand(MCID.findFirstPredOperandIdx()).getImm() !=
              ARMCC::AL && Inst.getOpcode() != ARM::tBcc &&
              Inst.getOpcode() != ARM::t2Bcc)
-    //return Error(Loc, "predicated instructions must be in IT block");
-    return true;
+    return Error(Loc, "predicated instructions must be in IT block");
 
   const unsigned Opcode = Inst.getOpcode();
   switch (Opcode) {
@@ -6332,33 +6297,29 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
 
     // Rt can't be R14.
     if (RtReg == ARM::LR)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "Rt can't be R14");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "Rt can't be R14");
 
     const unsigned Rt = MRI->getEncodingValue(RtReg);
     // Rt must be even-numbered.
     if ((Rt & 1) == 1)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "Rt must be even-numbered");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "Rt must be even-numbered");
 
     // Rt2 must be Rt + 1.
     const unsigned Rt2 = MRI->getEncodingValue(Inst.getOperand(1).getReg());
     if (Rt2 != Rt + 1)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "destination operands must be sequential");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "destination operands must be sequential");
 
     if (Opcode == ARM::LDRD_PRE || Opcode == ARM::LDRD_POST) {
       const unsigned Rn = MRI->getEncodingValue(Inst.getOperand(3).getReg());
       // For addressing modes with writeback, the base register needs to be
       // different from the destination registers.
       if (Rn == Rt || Rn == Rt2)
-        //return Error(Operands[3]->getStartLoc(),
-        //             "base register needs to be different from destination "
-        //             "registers");
-        return true;
+        return Error(Operands[3]->getStartLoc(),
+                     "base register needs to be different from destination "
+                     "registers");
     }
 
     return false;
@@ -6370,18 +6331,16 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     unsigned Rt = MRI->getEncodingValue(Inst.getOperand(0).getReg());
     unsigned Rt2 = MRI->getEncodingValue(Inst.getOperand(1).getReg());
     if (Rt2 == Rt)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "destination operands can't be identical");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "destination operands can't be identical");
     return false;
   }
   case ARM::t2BXJ: {
     const unsigned RmReg = Inst.getOperand(0).getReg();
     // Rm = SP is no longer unpredictable in v8-A
     if (RmReg == ARM::SP && !hasV8Ops())
-      //return Error(Operands[2]->getStartLoc(),
-      //             "r13 (SP) is an unpredictable operand to BXJ");
-      return true;
+      return Error(Operands[2]->getStartLoc(),
+                   "r13 (SP) is an unpredictable operand to BXJ");
     return false;
   }
   case ARM::STRD: {
@@ -6673,10 +6632,9 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     const ARMMCExpr *ARM16Expr = dyn_cast<ARMMCExpr>(E);
     if (!ARM16Expr || (ARM16Expr->getKind() != ARMMCExpr::VK_ARM_HI16 &&
                        ARM16Expr->getKind() != ARMMCExpr::VK_ARM_LO16))
-      //return Error(
-      //    Op.getStartLoc(),
-      //    "immediate expression for mov requires :lower16: or :upper16");
-      return true;
+      return Error(
+          Op.getStartLoc(),
+          "immediate expression for mov requires :lower16: or :upper16");
     break;
   }
   }
@@ -8899,7 +8857,6 @@ bool ARMAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return true;
   }
   case Match_InvalidOperand: {
-#if 0
     SMLoc ErrorLoc = IDLoc;
     if (ErrorInfo != ~0ULL) {
       if (ErrorInfo >= Operands.size())
@@ -8908,48 +8865,46 @@ bool ARMAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
       ErrorLoc = ((ARMOperand &)*Operands[ErrorInfo]).getStartLoc();
       if (ErrorLoc == SMLoc()) ErrorLoc = IDLoc;
     }
-#endif
 
-    // return Error(ErrorLoc, "invalid operand for instruction");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
-    return true;
+    return Error(ErrorLoc, "invalid operand for instruction");
   }
   case Match_MnemonicFail:
-    //return Error(IDLoc, "invalid instruction",
-    //             ((ARMOperand &)*Operands[0]).getLocRange());
+    Error(IDLoc, "invalid instruction",
+          ((ARMOperand &)*Operands[0]).getLocRange());
     ErrorCode = KS_ERR_ASM_ARM_MNEMONICFAIL;
     return true;
   case Match_RequiresNotITBlock:
-    //return Error(IDLoc, "flag setting instruction only valid outside IT block");
+    Error(IDLoc, "flag setting instruction only valid outside IT block");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   case Match_RequiresITBlock:
-    //return Error(IDLoc, "instruction only valid inside IT block");
+    Error(IDLoc, "instruction only valid inside IT block");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   case Match_RequiresV6:
-    //return Error(IDLoc, "instruction variant requires ARMv6 or later");
+    Error(IDLoc, "instruction variant requires ARMv6 or later");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   case Match_RequiresThumb2:
-    //return Error(IDLoc, "instruction variant requires Thumb2");
+    Error(IDLoc, "instruction variant requires Thumb2");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   case Match_RequiresV8:
-    //return Error(IDLoc, "instruction variant requires ARMv8 or later");
+    Error(IDLoc, "instruction variant requires ARMv8 or later");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   case Match_ImmRange0_15: {
     SMLoc ErrorLoc = ((ARMOperand &)*Operands[ErrorInfo]).getStartLoc();
     if (ErrorLoc == SMLoc()) ErrorLoc = IDLoc;
-    // return Error(ErrorLoc, "immediate operand must be in the range [0,15]");
+    Error(ErrorLoc, "immediate operand must be in the range [0,15]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   }
   case Match_ImmRange0_239: {
     SMLoc ErrorLoc = ((ARMOperand &)*Operands[ErrorInfo]).getStartLoc();
     if (ErrorLoc == SMLoc()) ErrorLoc = IDLoc;
-    // return Error(ErrorLoc, "immediate operand must be in the range [0,239]");
+    Error(ErrorLoc, "immediate operand must be in the range [0,239]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   }
@@ -8972,26 +8927,26 @@ bool ARMAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
         llvm_unreachable("Missing Match_Aligned type");
       case Match_AlignedMemoryRequiresNone:
       case Match_DupAlignedMemoryRequiresNone:
-        //return Error(ErrorLoc, "alignment must be omitted");
+        Error(ErrorLoc, "alignment must be omitted");
         return true;
       case Match_AlignedMemoryRequires16:
       case Match_DupAlignedMemoryRequires16:
-        //return Error(ErrorLoc, "alignment must be 16 or omitted");
+        Error(ErrorLoc, "alignment must be 16 or omitted");
         return true;
       case Match_AlignedMemoryRequires32:
       case Match_DupAlignedMemoryRequires32:
-        //return Error(ErrorLoc, "alignment must be 32 or omitted");
+        Error(ErrorLoc, "alignment must be 32 or omitted");
         return true;
       case Match_AlignedMemoryRequires64:
       case Match_DupAlignedMemoryRequires64:
-        //return Error(ErrorLoc, "alignment must be 64 or omitted");
+        Error(ErrorLoc, "alignment must be 64 or omitted");
         return true;
       case Match_AlignedMemoryRequires64or128:
       case Match_DupAlignedMemoryRequires64or128:
-        //return Error(ErrorLoc, "alignment must be 64, 128 or omitted");
+        Error(ErrorLoc, "alignment must be 64, 128 or omitted");
         return true;
       case Match_AlignedMemoryRequires64or128or256:
-        //return Error(ErrorLoc, "alignment must be 64, 128, 256 or omitted");
+        Error(ErrorLoc, "alignment must be 64, 128, 256 or omitted");
         return true;
     }
   }

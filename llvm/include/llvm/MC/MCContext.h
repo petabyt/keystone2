@@ -57,6 +57,9 @@ namespace llvm_ks {
     void (*instructionStreamHandler)(void *arg, unsigned int of, unsigned int size);
     void *instructionStreamHandlerArg;
 
+    void (*errorMessageHandler)(void *arg, const char *string, unsigned int size);
+    void *errorMessageHandlerArg;
+
   private:
     /// The SourceMgr for this object, if any.
     const SourceMgr *SrcMgr;
@@ -567,6 +570,27 @@ namespace llvm_ks {
     // FIXME: We should really do something about that.
     LLVM_ATTRIBUTE_NORETURN void reportFatalError(SMLoc L,
                                                   const Twine &Msg);
+  };
+
+  class KeystoneMCContextStream : public raw_ostream {
+  	MCContext &Ctx;
+  	uint64_t pos = 0;
+
+  public:
+  	KeystoneMCContextStream(MCContext &c) : Ctx(c) {
+  	  SetUnbuffered();
+  	}
+
+  	uint64_t current_pos() const override {
+  		return pos;
+  	}
+
+  	void write_impl(const char *ptr, size_t size) override {
+    	if (Ctx.errorMessageHandler != nullptr) {
+    	  Ctx.errorMessageHandler(Ctx.errorMessageHandlerArg, ptr, size);
+    	}
+  		pos += size;
+  	}
   };
 
 } // end namespace llvm_ks

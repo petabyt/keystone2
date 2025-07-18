@@ -206,6 +206,7 @@ static ks_err InitKs(int arch, ks_engine *ks, std::string TripleName)
     std::string MCPU = "";
 
     ks->instructionStreamHandler = nullptr;
+    ks->errorMessageHandler = nullptr;
 
     if (!initialized) {
         initialized = true;
@@ -599,6 +600,12 @@ void ks_set_instruction_stream_handler(ks_engine *ks, void (*handler)(void *arg,
 }
 
 KEYSTONE_EXPORT
+void ks_set_error_message_handler(ks_engine *ks, void (*handler)(void *arg, const char *string, unsigned int size), void *arg) {
+    ks->errorMessageHandler = handler;
+    ks->errorMessageHandlerArg = arg;
+}
+
+KEYSTONE_EXPORT
 void ks_free(unsigned char *p)
 {
     free(p);
@@ -641,8 +648,16 @@ int ks_asm(ks_engine *ks,
     *insn_size = 0;
 
     MCContext Ctx(ks->MAI, ks->MRI, &ks->MOFI, &ks->SrcMgr, true, address);
+
     Ctx.instructionStreamHandler = ks->instructionStreamHandler;
     Ctx.instructionStreamHandlerArg = ks->instructionStreamHandlerArg;
+
+    Ctx.errorMessageHandler = ks->errorMessageHandler;
+    Ctx.errorMessageHandlerArg = ks->errorMessageHandlerArg;
+
+    raw_ostream *stream = new KeystoneMCContextStream(Ctx);
+    set_custom_ostream(stream);
+    
     ks->MOFI.InitMCObjectFileInfo(Triple(ks->TripleName), Ctx);
     CE = ks->TheTarget->createMCCodeEmitter(*ks->MCII, *ks->MRI, Ctx);
     if (!CE) {

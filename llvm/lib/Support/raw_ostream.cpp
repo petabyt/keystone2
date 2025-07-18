@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+//#include "llvm/MC/MCContext.h" // needed for KeystoneMCContextStream
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -60,6 +61,8 @@
 #endif
 
 using namespace llvm_ks;
+
+raw_ostream *cutom_output_stream = nullptr;
 
 raw_ostream::~raw_ostream() {
   // raw_ostream's subclasses should take care to flush the buffer
@@ -688,9 +691,18 @@ raw_ostream &llvm_ks::outs() {
   return S;
 }
 
+void llvm_ks::set_custom_ostream(raw_ostream *stream) {
+  cutom_output_stream = stream;
+}
+
 /// errs() - This returns a reference to a raw_ostream for standard error.
 /// Use it like: errs() << "foo" << "bar";
 raw_ostream &llvm_ks::errs() {
+  if (cutom_output_stream != nullptr) {
+    static raw_ostream& ref = *cutom_output_stream;
+    return ref;
+  }
+
   // Set standard error to be unbuffered by default.
   static raw_fd_ostream S(STDERR_FILENO, false, true);
   return S;

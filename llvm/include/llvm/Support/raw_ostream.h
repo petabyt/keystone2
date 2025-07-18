@@ -430,6 +430,8 @@ public:
   }
 };
 
+void set_custom_ostream(raw_ostream *stream);
+
 /// This returns a reference to a raw_ostream for standard output. Use it like:
 /// outs() << "foo" << "bar";
 raw_ostream &outs();

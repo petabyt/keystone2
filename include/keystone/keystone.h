@@ -341,6 +341,9 @@ void ks_free(unsigned char *p);
 KEYSTONE_EXPORT
 void ks_set_instruction_stream_handler(ks_engine *ks, void (*handler)(void *arg, unsigned int of, unsigned int size), void *arg);
 
+KEYSTONE_EXPORT
+void ks_set_error_message_handler(ks_engine *ks, void (*handler)(void *arg, const char *string, unsigned int size), void *arg);
+
 #ifdef __cplusplus
 }
 #endif

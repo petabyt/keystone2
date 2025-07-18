@@ -62,6 +62,9 @@ struct ks_struct {
     void (*instructionStreamHandler)(void *arg, unsigned int of, unsigned int size);
     void *instructionStreamHandlerArg;
 
+    void (*errorMessageHandler)(void *arg, const char *string, unsigned int size);
+    void *errorMessageHandlerArg;
+
     ks_struct(ks_arch arch, int mode, unsigned int errnum, ks_opt_value syntax)
         : arch(arch), mode(mode), errnum(errnum), syntax(syntax) { }
 };

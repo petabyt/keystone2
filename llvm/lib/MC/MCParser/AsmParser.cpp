@@ -857,9 +857,8 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
   AsmToken::TokenKind FirstTokenKind = Lexer.getKind();
   switch (FirstTokenKind) {
   default:
-    //return TokError("unknown token in expression");
     KsError = KS_ERR_ASM_EXPR_TOKEN;
-    return true;
+    return TokError("unknown token in expression");
   // If we have an error assume that we've already handled it.
   case AsmToken::Error:
     return true;
@@ -886,9 +885,8 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
           EndLoc = FirstTokenLoc;
           return false;
         }
-        //return Error(FirstTokenLoc, "invalid token in expression");
         KsError = KS_ERR_ASM_INVALIDOPERAND;
-        return true;
+        return Error(FirstTokenLoc, "invalid token in expression");
       }
     }
     // Parse symbol variant
@@ -897,12 +895,11 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
       if (FirstTokenKind == AsmToken::String) {
         if (Lexer.is(AsmToken::At)) {
           Lexer.Lex(); // eat @
-          //SMLoc AtLoc = getLexer().getLoc();
+          SMLoc AtLoc = getLexer().getLoc();
           StringRef VName;
           if (parseIdentifier(VName)) {
-            //return Error(AtLoc, "expected symbol variant after '@'");
             KsError = KS_ERR_ASM_INVALIDOPERAND;
-            return true;
+            return Error(AtLoc, "expected symbol variant after '@'");
           }
 
           Split = std::make_pair(Identifier, VName);
@@ -915,10 +912,9 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
       StringRef VName;
       parseIdentifier(VName);
       if (Lexer.isNot(AsmToken::RParen)) {
-          //return Error(Lexer.getTok().getLoc(),
-          //             "unexpected token in variant, expected ')'");
           KsError = KS_ERR_ASM_INVALIDOPERAND;
-          return true;
+          return Error(Lexer.getTok().getLoc(),
+                       "unexpected token in variant, expected ')'");
       }
       Lexer.Lex(); // eat )
       Split = std::make_pair(Identifier, VName);
@@ -938,10 +934,9 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
       } else if (MAI.doesAllowAtInName() && !MAI.useParensForSymbolVariant()) {
         Variant = MCSymbolRefExpr::VK_None;
       } else {
-        //return Error(SMLoc::getFromPointer(Split.second.begin()),
-        //             "invalid variant '" + Split.second + "'");
         KsError = KS_ERR_ASM_INVALIDOPERAND;
-        return true;
+        return Error(SMLoc::getFromPointer(Split.second.begin()),
+                     "invalid variant '" + Split.second + "'");
       }
     }
 
@@ -955,9 +950,8 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
     if (Sym->isVariable() &&
         isa<MCConstantExpr>(Sym->getVariableValue(/*SetUsed*/ false))) {
       if (Variant) {
-        //return Error(EndLoc, "unexpected modifier on variable reference");
         KsError = KS_ERR_ASM_INVALIDOPERAND;
-        return true;
+        return Error(EndLoc, "unexpected modifier on variable reference");
       }
 
       Res = Sym->getVariableValue(/*SetUsed*/ false);
@@ -973,7 +967,7 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
     KsError = KS_ERR_ASM_DIRECTIVE_VALUE_RANGE;
     return true;
   case AsmToken::Integer: {
-    //SMLoc Loc = getTok().getLoc();
+    SMLoc Loc = getTok().getLoc();
     bool valid;
     int64_t IntVal = getTok().getIntVal(valid);
     if (!valid) {
@@ -1005,9 +999,8 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
             return true;
         Res = MCSymbolRefExpr::create(Sym, Variant, getContext());
         if (IDVal == "b" && Sym->isUndefined()) {
-          //return Error(Loc, "invalid reference to undefined symbol");
           KsError = KS_ERR_ASM_INVALIDOPERAND;
-          return true;
+          return Error(Loc, "invalid reference to undefined symbol");
         }
         EndLoc = Lexer.getTok().getEndLoc();
         Lex(); // Eat identifier.
@@ -1223,14 +1216,13 @@ bool AsmParser::parseParenExprOfDepth(unsigned ParenDepth, const MCExpr *&Res,
 bool AsmParser::parseAbsoluteExpression(int64_t &Res) {
   const MCExpr *Expr;
 
-  //SMLoc StartLoc = Lexer.getLoc();
+  SMLoc StartLoc = Lexer.getLoc();
   if (parseExpression(Expr))
     return true;
 
   if (!Expr->evaluateAsAbsolute(Res)) {
-    //return Error(StartLoc, "expected absolute expression");
     KsError = KS_ERR_ASM_INVALIDOPERAND;
-    return true;
+    return Error(StartLoc, "expected absolute expression");
   }
 
   return false;
@@ -1603,9 +1595,8 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
 
     // Diagnose attempt to use '.' as a label.
     if (IDVal == ".") {
-      //return Error(IDLoc, "invalid use of pseudo-symbol '.' as a label");
       KsError = KS_ERR_ASM_INVALIDOPERAND;
-      return true;
+      return Error(IDLoc, "invalid use of pseudo-symbol '.' as a label");
     }
 
     // Diagnose attempt to use a variable as a label.
@@ -1640,9 +1631,8 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
     Sym->redefineIfPossible();
 
     if (!Sym->isUndefined() || Sym->isVariable()) {
-      //return Error(IDLoc, "invalid symbol redefinition");
       Info.KsError = KS_ERR_ASM_SYMBOL_REDEFINED;
-      return true;
+      return Error(IDLoc, "invalid symbol redefinition");
     }
 
     // Emit the label.
@@ -1716,7 +1706,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
 
     // Finally, if no one else is interested in this directive, it must be
     // generic and familiar to this class.
-    bool is_error;
+    bool is_error = false;
     switch (DirKind) {
     default:
       break;
@@ -2037,9 +2027,8 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       return false;
     }
 
-    //return Error(IDLoc, "unknown directive");
     KsError = KS_ERR_ASM_DIRECTIVE_UNKNOWN;
-    return true;
+    return Error(IDLoc, "unknown directive");
   }
 
   // __asm _emit or __asm __emit

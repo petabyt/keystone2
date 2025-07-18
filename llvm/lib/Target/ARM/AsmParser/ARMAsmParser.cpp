@@ -185,10 +185,10 @@ class ARMAsmParser : public MCTargetAsmParser {
                ArrayRef<SMRange> Ranges = None) {
     return getParser().Warning(L, Msg, Ranges);
   }
-  //bool Error(SMLoc L, const Twine &Msg,
-  //           ArrayRef<SMRange> Ranges = None) {
-  //  return getParser().Error(L, Msg, Ranges);
-  //}
+  bool Error(SMLoc L, const Twine &Msg,
+             ArrayRef<SMRange> Ranges = None) {
+    return getParser().Error(L, Msg, Ranges);
+  }
 
   bool validatetLDMRegList(const MCInst &Inst, const OperandVector &Operands,
                            unsigned ListNo, bool IsARPop = false);

@@ -3081,16 +3081,16 @@ int ARMAsmParser::tryParseShiftRegister(OperandVector &Operands)
     if (Parser.getTok().is(AsmToken::Hash) ||
         Parser.getTok().is(AsmToken::Dollar)) {
       Parser.Lex(); // Eat hash.
-      //SMLoc ImmLoc = Parser.getTok().getLoc();
+      SMLoc ImmLoc = Parser.getTok().getLoc();
       const MCExpr *ShiftExpr = nullptr;
       if (getParser().parseExpression(ShiftExpr, EndLoc)) {
-        //Error(ImmLoc, "invalid immediate shift value");
+        Error(ImmLoc, "invalid immediate shift value");
         return -1;
       }
       // The expression must be evaluatable as an immediate.
       const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ShiftExpr);
       if (!CE) {
-        //Error(ImmLoc, "invalid immediate shift value");
+        Error(ImmLoc, "invalid immediate shift value");
         return -1;
       }
       // Range check the immediate.
@@ -3100,7 +3100,7 @@ int ARMAsmParser::tryParseShiftRegister(OperandVector &Operands)
       if (Imm < 0 ||
           ((ShiftTy == ARM_AM::lsl || ShiftTy == ARM_AM::ror) && Imm > 31) ||
           ((ShiftTy == ARM_AM::lsr || ShiftTy == ARM_AM::asr) && Imm > 32)) {
-        //Error(ImmLoc, "immediate shift value out of range");
+        Error(ImmLoc, "immediate shift value out of range");
         return -1;
       }
       // shift by zero is a nop. Always send it through as lsl.
@@ -3108,16 +3108,16 @@ int ARMAsmParser::tryParseShiftRegister(OperandVector &Operands)
       if (Imm == 0)
         ShiftTy = ARM_AM::lsl;
     } else if (Parser.getTok().is(AsmToken::Identifier)) {
-      //SMLoc L = Parser.getTok().getLoc();
+      SMLoc L = Parser.getTok().getLoc();
       EndLoc = Parser.getTok().getEndLoc();
       ShiftReg = tryParseRegister();
       if (ShiftReg == -1) {
-        //Error(L, "expected immediate or register in shift operand");
+        Error(L, "expected immediate or register in shift operand");
         return -1;
       }
     } else {
-      //Error(Parser.getTok().getLoc(),
-      //      "expected immediate or register in shift operand");
+      Error(Parser.getTok().getLoc(),
+            "expected immediate or register in shift operand");
       return -1;
     }
   }
@@ -3329,15 +3329,15 @@ ARMAsmParser::parseCoprocOptionOperand(OperandVector &Operands, unsigned int &Er
   Parser.Lex(); // Eat the '{'
 
   const MCExpr *Expr;
-  //SMLoc Loc = Parser.getTok().getLoc();
+  SMLoc Loc = Parser.getTok().getLoc();
   if (getParser().parseExpression(Expr)) {
-    //Error(Loc, "illegal expression");
+    Error(Loc, "illegal expression");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Expr);
   if (!CE || CE->getValue() < 0 || CE->getValue() > 255) {
-    //Error(Loc, "coprocessor option must be an immediate in range [0, 255]");
+    Error(Loc, "coprocessor option must be an immediate in range [0, 255]");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -3552,20 +3552,20 @@ parseVectorLane(VectorLaneTy &LaneKind, unsigned &Index, SMLoc &EndLoc, unsigned
       Parser.Lex(); // Eat '#' or '$'.
 
     const MCExpr *LaneIndex;
-    //SMLoc Loc = Parser.getTok().getLoc();
+    SMLoc Loc = Parser.getTok().getLoc();
     if (getParser().parseExpression(LaneIndex)) {
-      //Error(Loc, "illegal expression");
+      Error(Loc, "illegal expression");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(LaneIndex);
     if (!CE) {
-      //Error(Loc, "lane index must be empty or an integer");
+      Error(Loc, "lane index must be empty or an integer");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
     if (Parser.getTok().isNot(AsmToken::RBrac)) {
-      //Error(Parser.getTok().getLoc(), "']' expected");
+      Error(Parser.getTok().getLoc(), "']' expected");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -3575,7 +3575,7 @@ parseVectorLane(VectorLaneTy &LaneKind, unsigned &Index, SMLoc &EndLoc, unsigned
 
     // FIXME: Make this range check context sensitive for .8, .16, .32.
     if (Val < 0 || Val > 7) {
-      //Error(Parser.getTok().getLoc(), "lane index out of range");
+      Error(Parser.getTok().getLoc(), "lane index out of range");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -3648,7 +3648,7 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
       }
       return MatchOperand_Success;
     }
-    //Error(S, "vector register expected");
+    Error(S, "vector register expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -3661,7 +3661,7 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
 
   int Reg = tryParseRegister();
   if (Reg == -1) {
-    //Error(RegLoc, "register expected");
+    Error(RegLoc, "register expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -3688,16 +3688,16 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
       if (!Spacing)
         Spacing = 1; // Register range implies a single spaced list.
       else if (Spacing == 2) {
-        //Error(Parser.getTok().getLoc(),
-        //      "sequential registers in double spaced list");
+        Error(Parser.getTok().getLoc(),
+             "sequential registers in double spaced list");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
       Parser.Lex(); // Eat the minus.
-      //SMLoc AfterMinusLoc = Parser.getTok().getLoc();
+      SMLoc AfterMinusLoc = Parser.getTok().getLoc();
       int EndReg = tryParseRegister();
       if (EndReg == -1) {
-        //Error(AfterMinusLoc, "register expected");
+        Error(AfterMinusLoc, "register expected");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
@@ -3710,13 +3710,13 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
         continue;
       // The register must be in the same register class as the first.
       if (!ARMMCRegisterClasses[ARM::DPRRegClassID].contains(EndReg)) {
-        //Error(AfterMinusLoc, "invalid register in register list");
+        Error(AfterMinusLoc, "invalid register in register list");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
       // Ranges must go from low to high.
       if (Reg > EndReg) {
-        //Error(AfterMinusLoc, "bad range in register list");
+        Error(AfterMinusLoc, "bad range in register list");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
@@ -3727,7 +3727,7 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
           MatchOperand_Success)
         return MatchOperand_ParseFail;
       if (NextLaneKind != LaneKind || LaneIndex != NextLaneIndex) {
-        //Error(AfterMinusLoc, "mismatched lane index in register list");
+        Error(AfterMinusLoc, "mismatched lane index in register list");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
@@ -3742,7 +3742,7 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
     int OldReg = Reg;
     Reg = tryParseRegister();
     if (Reg == -1) {
-      //Error(RegLoc, "register expected");
+      Error(RegLoc, "register expected");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -3756,14 +3756,14 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
       if (!Spacing)
         Spacing = 1; // Register range implies a single spaced list.
       else if (Spacing == 2) {
-        //Error(RegLoc,
-        //      "invalid register in double-spaced list (must be 'D' register')");
+        Error(RegLoc,
+             "invalid register in double-spaced list (must be 'D' register')");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
       Reg = getDRegFromQReg(Reg);
       if (Reg != OldReg + 1) {
-        //Error(RegLoc, "non-contiguous register range");
+        Error(RegLoc, "non-contiguous register range");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
@@ -3772,12 +3772,12 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
       // Parse the lane specifier if present.
       VectorLaneTy NextLaneKind;
       unsigned NextLaneIndex;
-      //SMLoc LaneLoc = Parser.getTok().getLoc();
+      SMLoc LaneLoc = Parser.getTok().getLoc();
       if (parseVectorLane(NextLaneKind, NextLaneIndex, E, ErrorCode) !=
           MatchOperand_Success)
         return MatchOperand_ParseFail;
       if (NextLaneKind != LaneKind || LaneIndex != NextLaneIndex) {
-        //Error(LaneLoc, "mismatched lane index in register list");
+        Error(LaneLoc, "mismatched lane index in register list");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return MatchOperand_ParseFail;
       }
@@ -3791,7 +3791,7 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
 
     // Just check that it's contiguous and keep going.
     if (Reg != OldReg + Spacing) {
-      //Error(RegLoc, "non-contiguous register range");
+      Error(RegLoc, "non-contiguous register range");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -3799,18 +3799,18 @@ ARMAsmParser::parseVectorList(OperandVector &Operands, unsigned int &ErrorCode)
     // Parse the lane specifier if present.
     VectorLaneTy NextLaneKind;
     unsigned NextLaneIndex;
-    //SMLoc EndLoc = Parser.getTok().getLoc();
+    SMLoc EndLoc = Parser.getTok().getLoc();
     if (parseVectorLane(NextLaneKind, NextLaneIndex, E, ErrorCode) != MatchOperand_Success)
       return MatchOperand_ParseFail;
     if (NextLaneKind != LaneKind || LaneIndex != NextLaneIndex) {
-      //Error(EndLoc, "mismatched lane index in register list");
+      Error(EndLoc, "mismatched lane index in register list");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
   }
 
   if (Parser.getTok().isNot(AsmToken::RCurly)) {
-    //Error(Parser.getTok().getLoc(), "'}' expected");
+    Error(Parser.getTok().getLoc(), "'}' expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -3899,25 +3899,25 @@ ARMAsmParser::parseMemBarrierOptOperand(OperandVector &Operands, unsigned int &E
     if (Parser.getTok().isNot(AsmToken::Integer))
       Parser.Lex(); // Eat '#' or '$'.
 
-    //SMLoc Loc = Parser.getTok().getLoc();
+    SMLoc Loc = Parser.getTok().getLoc();
 
     const MCExpr *MemBarrierID;
     if (getParser().parseExpression(MemBarrierID)) {
-      //Error(Loc, "illegal expression");
+      Error(Loc, "illegal expression");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
 
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(MemBarrierID);
     if (!CE) {
-      //Error(Loc, "constant expression expected");
+      Error(Loc, "constant expression expected");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
 
     int Val = CE->getValue();
     if (Val & ~0xf) {
-      //Error(Loc, "immediate value out of range");
+      Error(Loc, "immediate value out of range");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -3953,25 +3953,25 @@ ARMAsmParser::parseInstSyncBarrierOptOperand(OperandVector &Operands, unsigned i
     if (Parser.getTok().isNot(AsmToken::Integer))
       Parser.Lex(); // Eat '#' or '$'.
 
-    //SMLoc Loc = Parser.getTok().getLoc();
+    SMLoc Loc = Parser.getTok().getLoc();
 
     const MCExpr *ISBarrierID;
     if (getParser().parseExpression(ISBarrierID)) {
-      //Error(Loc, "illegal expression");
+      Error(Loc, "illegal expression");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
 
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ISBarrierID);
     if (!CE) {
-      //Error(Loc, "constant expression expected");
+      Error(Loc, "constant expression expected");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
 
     int Val = CE->getValue();
     if (Val & ~0xf) {
-      //Error(Loc, "immediate value out of range");
+      Error(Loc, "immediate value out of range");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -4237,7 +4237,7 @@ ARMAsmParser::parsePKHImm(OperandVector &Operands, StringRef Op, int Low,
   MCAsmParser &Parser = getParser();
   const AsmToken &Tok = Parser.getTok();
   if (Tok.isNot(AsmToken::Identifier)) {
-    //Error(Parser.getTok().getLoc(), Op + " operand expected.");
+    Error(Parser.getTok().getLoc(), Op + " operand expected.");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4245,7 +4245,7 @@ ARMAsmParser::parsePKHImm(OperandVector &Operands, StringRef Op, int Low,
   std::string LowerOp = Op.lower();
   std::string UpperOp = Op.upper();
   if (ShiftName != LowerOp && ShiftName != UpperOp) {
-    //Error(Parser.getTok().getLoc(), Op + " operand expected.");
+    Error(Parser.getTok().getLoc(), Op + " operand expected.");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4254,7 +4254,7 @@ ARMAsmParser::parsePKHImm(OperandVector &Operands, StringRef Op, int Low,
   // There must be a '#' and a shift amount.
   if (Parser.getTok().isNot(AsmToken::Hash) &&
       Parser.getTok().isNot(AsmToken::Dollar)) {
-    //Error(Parser.getTok().getLoc(), "'#' expected");
+    Error(Parser.getTok().getLoc(), "'#' expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4264,19 +4264,19 @@ ARMAsmParser::parsePKHImm(OperandVector &Operands, StringRef Op, int Low,
   SMLoc Loc = Parser.getTok().getLoc();
   SMLoc EndLoc;
   if (getParser().parseExpression(ShiftAmount, EndLoc)) {
-    //Error(Loc, "illegal expression");
+    Error(Loc, "illegal expression");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ShiftAmount);
   if (!CE) {
-    //Error(Loc, "constant expression expected");
+    Error(Loc, "constant expression expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   int Val = CE->getValue();
   if (Val < Low || Val > High) {
-    //Error(Loc, "immediate value out of range");
+    Error(Loc, "immediate value out of range");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4293,7 +4293,7 @@ ARMAsmParser::parseSetEndImm(OperandVector &Operands, unsigned int &ErrorCode)
   const AsmToken &Tok = Parser.getTok();
   SMLoc S = Tok.getLoc();
   if (Tok.isNot(AsmToken::Identifier)) {
-    //Error(S, "'be' or 'le' operand expected");
+    Error(S, "'be' or 'le' operand expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4304,7 +4304,7 @@ ARMAsmParser::parseSetEndImm(OperandVector &Operands, unsigned int &ErrorCode)
   Parser.Lex(); // Eat the token.
 
   if (Val == -1) {
-    //Error(S, "'be' or 'le' operand expected");
+    Error(S, "'be' or 'le' operand expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4326,7 +4326,7 @@ ARMAsmParser::parseShifterImm(OperandVector &Operands, unsigned int &ErrorCode)
   const AsmToken &Tok = Parser.getTok();
   SMLoc S = Tok.getLoc();
   if (Tok.isNot(AsmToken::Identifier)) {
-    //Error(S, "shift operator 'asr' or 'lsl' expected");
+    Error(S, "shift operator 'asr' or 'lsl' expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4337,7 +4337,7 @@ ARMAsmParser::parseShifterImm(OperandVector &Operands, unsigned int &ErrorCode)
   else if (ShiftName == "asr" || ShiftName == "ASR")
     isASR = true;
   else {
-    //Error(S, "shift operator 'asr' or 'lsl' expected");
+    Error(S, "shift operator 'asr' or 'lsl' expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4346,23 +4346,23 @@ ARMAsmParser::parseShifterImm(OperandVector &Operands, unsigned int &ErrorCode)
   // A '#' and a shift amount.
   if (Parser.getTok().isNot(AsmToken::Hash) &&
       Parser.getTok().isNot(AsmToken::Dollar)) {
-    //Error(Parser.getTok().getLoc(), "'#' expected");
+    Error(Parser.getTok().getLoc(), "'#' expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   Parser.Lex(); // Eat hash token.
-  //SMLoc ExLoc = Parser.getTok().getLoc();
+  SMLoc ExLoc = Parser.getTok().getLoc();
 
   const MCExpr *ShiftAmount;
   SMLoc EndLoc;
   if (getParser().parseExpression(ShiftAmount, EndLoc)) {
-    //Error(ExLoc, "malformed shift expression");
+    Error(ExLoc, "malformed shift expression");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ShiftAmount);
   if (!CE) {
-    //Error(ExLoc, "shift amount must be an immediate");
+    Error(ExLoc, "shift amount must be an immediate");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4371,13 +4371,13 @@ ARMAsmParser::parseShifterImm(OperandVector &Operands, unsigned int &ErrorCode)
   if (isASR) {
     // Shift amount must be in [1,32]
     if (Val < 1 || Val > 32) {
-      //Error(ExLoc, "'asr' shift amount must be in range [1,32]");
+      Error(ExLoc, "'asr' shift amount must be in range [1,32]");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
     // asr #32 encoded as asr #0, but is not allowed in Thumb2 mode.
     if (isThumb() && Val == 32) {
-      //Error(ExLoc, "'asr #32' shift amount not allowed in Thumb mode");
+      Error(ExLoc, "'asr #32' shift amount not allowed in Thumb mode");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -4385,7 +4385,7 @@ ARMAsmParser::parseShifterImm(OperandVector &Operands, unsigned int &ErrorCode)
   } else {
     // Shift amount must be in [1,32]
     if (Val < 0 || Val > 31) {
-      //Error(ExLoc, "'lsr' shift amount must be in range [0,31]");
+      Error(ExLoc, "'lsr' shift amount must be in range [0,31]");
       ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
       return MatchOperand_ParseFail;
     }
@@ -4414,23 +4414,23 @@ ARMAsmParser::parseRotImm(OperandVector &Operands, unsigned int &ErrorCode) {
   // A '#' and a rotate amount.
   if (Parser.getTok().isNot(AsmToken::Hash) &&
       Parser.getTok().isNot(AsmToken::Dollar)) {
-    //Error(Parser.getTok().getLoc(), "'#' expected");
+    Error(Parser.getTok().getLoc(), "'#' expected");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   Parser.Lex(); // Eat hash token.
-  //SMLoc ExLoc = Parser.getTok().getLoc();
+  SMLoc ExLoc = Parser.getTok().getLoc();
 
   const MCExpr *ShiftAmount;
   SMLoc EndLoc;
   if (getParser().parseExpression(ShiftAmount, EndLoc)) {
-    //Error(ExLoc, "malformed rotate expression");
+    Error(ExLoc, "malformed rotate expression");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ShiftAmount);
   if (!CE) {
-    //Error(ExLoc, "rotate amount must be an immediate");
+    Error(ExLoc, "rotate amount must be an immediate");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4440,7 +4440,7 @@ ARMAsmParser::parseRotImm(OperandVector &Operands, unsigned int &ErrorCode) {
   // normally, zero is represented in asm by omitting the rotate operand
   // entirely.
   if (Val != 8 && Val != 16 && Val != 24 && Val != 0) {
-    //Error(ExLoc, "'ror' rotate amount must be 8, 16, or 24");
+    Error(ExLoc, "'ror' rotate amount must be 8, 16, or 24");
     ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4487,7 +4487,7 @@ ARMAsmParser::parseModImm(OperandVector &Operands, unsigned int &ErrorCode)
   Sx1 = Parser.getTok().getLoc();
   const MCExpr *Imm1Exp;
   if (getParser().parseExpression(Imm1Exp, Ex1)) {
-    //Error(Sx1, "malformed expression");
+    Error(Sx1, "malformed expression");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4525,13 +4525,13 @@ ARMAsmParser::parseModImm(OperandVector &Operands, unsigned int &ErrorCode)
 
   // From this point onward, we expect the input to be a (#bits, #rot) pair
   if (Parser.getTok().isNot(AsmToken::Comma)) {
-    //Error(Sx1, "expected modified immediate operand: #[0, 255], #even[0-30]");
+    Error(Sx1, "expected modified immediate operand: #[0, 255], #even[0-30]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
 
   if (Imm1 & ~0xFF) {
-    // Error(Sx1, "immediate operand must a number in the range [0, 255]");
+    Error(Sx1, "immediate operand must a number in the range [0, 255]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4550,7 +4550,7 @@ ARMAsmParser::parseModImm(OperandVector &Operands, unsigned int &ErrorCode)
 
   const MCExpr *Imm2Exp;
   if (getParser().parseExpression(Imm2Exp, Ex2)) {
-    // Error(Sx2, "malformed expression");
+    Error(Sx2, "malformed expression");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4564,11 +4564,11 @@ ARMAsmParser::parseModImm(OperandVector &Operands, unsigned int &ErrorCode)
       Operands.push_back(ARMOperand::CreateModImm(Imm1, Imm2, S, Ex2));
       return MatchOperand_Success;
     }
-    // Error(Sx2, "immediate operand must an even number in the range [0, 30]");
+    Error(Sx2, "immediate operand must an even number in the range [0, 30]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   } else {
-    // Error(Sx2, "constant expression expected");
+    Error(Sx2, "constant expression expected");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4582,7 +4582,7 @@ ARMAsmParser::parseBitfield(OperandVector &Operands, unsigned int &ErrorCode)
   // The bitfield descriptor is really two operands, the LSB and the width.
   if (Parser.getTok().isNot(AsmToken::Hash) &&
       Parser.getTok().isNot(AsmToken::Dollar)) {
-    // Error(Parser.getTok().getLoc(), "'#' expected");
+    Error(Parser.getTok().getLoc(), "'#' expected");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4591,13 +4591,13 @@ ARMAsmParser::parseBitfield(OperandVector &Operands, unsigned int &ErrorCode)
   const MCExpr *LSBExpr;
   SMLoc E = Parser.getTok().getLoc();
   if (getParser().parseExpression(LSBExpr)) {
-    // Error(E, "malformed immediate expression");
+    Error(E, "malformed immediate expression");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(LSBExpr);
   if (!CE) {
-    // Error(E, "'lsb' operand must be an immediate");
+    Error(E, "'lsb' operand must be an immediate");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4605,7 +4605,7 @@ ARMAsmParser::parseBitfield(OperandVector &Operands, unsigned int &ErrorCode)
   int64_t LSB = CE->getValue();
   // The LSB must be in the range [0,31]
   if (LSB < 0 || LSB > 31) {
-    // Error(E, "'lsb' operand must be in the range [0,31]");
+    Error(E, "'lsb' operand must be in the range [0,31]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4613,14 +4613,14 @@ ARMAsmParser::parseBitfield(OperandVector &Operands, unsigned int &ErrorCode)
 
   // Expect another immediate operand.
   if (Parser.getTok().isNot(AsmToken::Comma)) {
-    // Error(Parser.getTok().getLoc(), "too few operands");
+    Error(Parser.getTok().getLoc(), "too few operands");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   Parser.Lex(); // Eat hash token.
   if (Parser.getTok().isNot(AsmToken::Hash) &&
       Parser.getTok().isNot(AsmToken::Dollar)) {
-    // Error(Parser.getTok().getLoc(), "'#' expected");
+    Error(Parser.getTok().getLoc(), "'#' expected");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4629,13 +4629,13 @@ ARMAsmParser::parseBitfield(OperandVector &Operands, unsigned int &ErrorCode)
   const MCExpr *WidthExpr;
   SMLoc EndLoc;
   if (getParser().parseExpression(WidthExpr, EndLoc)) {
-    // Error(E, "malformed immediate expression");
+    Error(E, "malformed immediate expression");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
   CE = dyn_cast<MCConstantExpr>(WidthExpr);
   if (!CE) {
-    // Error(E, "'width' operand must be an immediate");
+    Error(E, "'width' operand must be an immediate");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4643,7 +4643,7 @@ ARMAsmParser::parseBitfield(OperandVector &Operands, unsigned int &ErrorCode)
   int64_t Width = CE->getValue();
   // The LSB must be in the range [1,32-lsb]
   if (Width < 1 || Width > 32 - LSB) {
-    // Error(E, "'width' operand must be in the range [1,32-lsb]");
+    Error(E, "'width' operand must be in the range [1,32-lsb]");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return MatchOperand_ParseFail;
   }
@@ -4682,7 +4682,7 @@ ARMAsmParser::parsePostIdxReg(OperandVector &Operands, unsigned int &ErrorCode) 
   if (Reg == -1) {
     if (!haveEaten)
       return MatchOperand_NoMatch;
-    //Error(Parser.getTok().getLoc(), "register expected");
+    Error(Parser.getTok().getLoc(), "register expected");
     return MatchOperand_ParseFail;
   }
 
@@ -4733,7 +4733,7 @@ ARMAsmParser::parseAM3Offset(OperandVector &Operands, unsigned int &ErrorCode) {
       return MatchOperand_ParseFail;
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Offset);
     if (!CE) {
-      //Error(S, "constant expression expected");
+      Error(S, "constant expression expected");
       return MatchOperand_ParseFail;
     }
     // Negative zero is encoded as the flag value INT32_MIN.
@@ -4764,7 +4764,7 @@ ARMAsmParser::parseAM3Offset(OperandVector &Operands, unsigned int &ErrorCode) {
   if (Reg == -1) {
     if (!haveEaten)
       return MatchOperand_NoMatch;
-    //Error(Tok.getLoc(), "register expected");
+    Error(Tok.getLoc(), "register expected");
     return MatchOperand_ParseFail;
   }
 
@@ -5153,7 +5153,7 @@ ARMAsmParser::parseFPImm(OperandVector &Operands, unsigned int &ErrorCode) {
     Parser.Lex();
   }
   const AsmToken &Tok = Parser.getTok();
-  //SMLoc Loc = Tok.getLoc();
+  SMLoc Loc = Tok.getLoc();
   if (Tok.is(AsmToken::Real) && isVmovf) {
     APFloat RealVal(APFloat::IEEEsingle, Tok.getString());
     if (RealVal.bitcastToAPInt().getActiveBits() > 64)
@@ -5176,7 +5176,7 @@ ARMAsmParser::parseFPImm(OperandVector &Operands, unsigned int &ErrorCode) {
       return MatchOperand_ParseFail;
     Parser.Lex(); // Eat the token.
     if (Val > 255 || Val < 0) {
-      //Error(Loc, "encoded floating point value out of range");
+      Error(Loc, "encoded floating point value out of range");
       return MatchOperand_ParseFail;
     }
     float RealVal = ARM_AM::getFPImmFloat(Val);
@@ -5190,7 +5190,7 @@ ARMAsmParser::parseFPImm(OperandVector &Operands, unsigned int &ErrorCode) {
     return MatchOperand_Success;
   }
 
-  //Error(Loc, "invalid floating point immediate");
+  Error(Loc, "invalid floating point immediate");
   return MatchOperand_ParseFail;
 }
 
@@ -5214,7 +5214,7 @@ bool ARMAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic, uns
 
   switch (getLexer().getKind()) {
   default:
-    //Error(Parser.getTok().getLoc(), "unexpected token in operand");
+    Error(Parser.getTok().getLoc(), "unexpected token in operand");
     ErrorCode = KS_ERR_ASM_ARM_INVALIDOPERAND;
     return true;
   case AsmToken::Identifier: {
@@ -5350,7 +5350,7 @@ bool ARMAsmParser::parsePrefix(ARMMCExpr::VariantKind &RefKind)
   Parser.Lex(); // Eat ':'
 
   if (getLexer().isNot(AsmToken::Identifier)) {
-    //Error(Parser.getTok().getLoc(), "expected prefix identifier in operand");
+    Error(Parser.getTok().getLoc(), "expected prefix identifier in operand");
     return true;
   }
 
@@ -5376,7 +5376,7 @@ bool ARMAsmParser::parsePrefix(ARMMCExpr::VariantKind &RefKind)
                       return PE.Spelling == IDVal;
                    });
   if (Prefix == std::end(PrefixEntries)) {
-    //Error(Parser.getTok().getLoc(), "unexpected prefix in operand");
+    Error(Parser.getTok().getLoc(), "unexpected prefix in operand");
     return true;
   }
 
@@ -5394,8 +5394,8 @@ bool ARMAsmParser::parsePrefix(ARMMCExpr::VariantKind &RefKind)
   }
 
   if (~Prefix->SupportedFormats & CurrentFormat) {
-    //Error(Parser.getTok().getLoc(),
-    //      "cannot represent relocation in the current file format");
+    Error(Parser.getTok().getLoc(),
+         "cannot represent relocation in the current file format");
     return true;
   }
 
@@ -5403,7 +5403,7 @@ bool ARMAsmParser::parsePrefix(ARMMCExpr::VariantKind &RefKind)
   Parser.Lex();
 
   if (getLexer().isNot(AsmToken::Colon)) {
-    //Error(Parser.getTok().getLoc(), "unexpected token after prefix");
+    Error(Parser.getTok().getLoc(), "unexpected token after prefix");
     return true;
   }
   Parser.Lex(); // Eat the last ':'
@@ -6105,9 +6105,9 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
 
       // Rt2 must be Rt + 1 and Rt must be even.
       if (Rt + 1 != Rt2 || (Rt & 1)) {
-        //Error(Op2.getStartLoc(), isLoad
-        //                             ? "destination operands must be sequential"
-        //                             : "source operands must be sequential");
+        Error(Op2.getStartLoc(), isLoad
+                                    ? "destination operands must be sequential"
+                                    : "source operands must be sequential");
         ErrorCode = KS_ERR_ASM_INVALIDOPERAND;
         return true;
       }
@@ -9038,7 +9038,7 @@ bool ARMAsmParser::parseLiteralValues(unsigned Size, SMLoc L) {
 
       // FIXME: Improve diagnostic.
       if (getLexer().isNot(AsmToken::Comma)) {
-        //Error(L, "unexpected token in directive");
+        Error(L, "unexpected token in directive");
         return false;
       }
       Parser.Lex();
@@ -9054,13 +9054,13 @@ bool ARMAsmParser::parseLiteralValues(unsigned Size, SMLoc L) {
 bool ARMAsmParser::parseDirectiveThumb(SMLoc L) {
   MCAsmParser &Parser = getParser();
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(L, "unexpected token in directive");
+    Error(L, "unexpected token in directive");
     return false;
   }
   Parser.Lex();
 
   if (!hasThumb()) {
-    //Error(L, "target does not support Thumb mode");
+    Error(L, "target does not support Thumb mode");
     return false;
   }
 
@@ -9076,13 +9076,13 @@ bool ARMAsmParser::parseDirectiveThumb(SMLoc L) {
 bool ARMAsmParser::parseDirectiveARM(SMLoc L) {
   MCAsmParser &Parser = getParser();
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(L, "unexpected token in directive");
+    Error(L, "unexpected token in directive");
     return false;
   }
   Parser.Lex();
 
   if (!hasARM()) {
-    //Error(L, "target does not support ARM mode");
+    Error(L, "target does not support ARM mode");
     return false;
   }
 
@@ -9113,7 +9113,7 @@ bool ARMAsmParser::parseDirectiveThumbFunc(SMLoc L) {
     const AsmToken &Tok = Parser.getTok();
     if (Tok.isNot(AsmToken::EndOfStatement)) {
       if (Tok.isNot(AsmToken::Identifier) && Tok.isNot(AsmToken::String)) {
-        //Error(L, "unexpected token in .thumb_func directive");
+        Error(L, "unexpected token in .thumb_func directive");
         return false;
       }
 
@@ -9126,7 +9126,7 @@ bool ARMAsmParser::parseDirectiveThumbFunc(SMLoc L) {
   }
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(Parser.getTok().getLoc(), "unexpected token in directive");
+    Error(Parser.getTok().getLoc(), "unexpected token in directive");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -9141,7 +9141,7 @@ bool ARMAsmParser::parseDirectiveSyntax(SMLoc L) {
   MCAsmParser &Parser = getParser();
   const AsmToken &Tok = Parser.getTok();
   if (Tok.isNot(AsmToken::Identifier)) {
-    //Error(L, "unexpected token in .syntax directive");
+    Error(L, "unexpected token in .syntax directive");
     return false;
   }
 
@@ -9149,15 +9149,15 @@ bool ARMAsmParser::parseDirectiveSyntax(SMLoc L) {
   if (Mode == "unified" || Mode == "UNIFIED") {
     Parser.Lex();
   } else if (Mode == "divided" || Mode == "DIVIDED") {
-    //Error(L, "'.syntax divided' arm asssembly not supported");
+    Error(L, "'.syntax divided' arm asssembly not supported");
     return false;
   } else {
-    //Error(L, "unrecognized syntax mode in .syntax directive");
+    Error(L, "unrecognized syntax mode in .syntax directive");
     return false;
   }
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(Parser.getTok().getLoc(), "unexpected token in directive");
+    Error(Parser.getTok().getLoc(), "unexpected token in directive");
     return false;
   }
   Parser.Lex();
@@ -9173,7 +9173,7 @@ bool ARMAsmParser::parseDirectiveCode(SMLoc L) {
   MCAsmParser &Parser = getParser();
   const AsmToken &Tok = Parser.getTok();
   if (Tok.isNot(AsmToken::Integer)) {
-    //Error(L, "unexpected token in .code directive");
+    Error(L, "unexpected token in .code directive");
     return false;
   }
   bool valid;
@@ -9181,20 +9181,20 @@ bool ARMAsmParser::parseDirectiveCode(SMLoc L) {
   if (!valid)
     return false;
   if (Val != 16 && Val != 32) {
-    //Error(L, "invalid operand to .code directive");
+    Error(L, "invalid operand to .code directive");
     return false;
   }
   Parser.Lex();
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(Parser.getTok().getLoc(), "unexpected token in directive");
+    Error(Parser.getTok().getLoc(), "unexpected token in directive");
     return false;
   }
   Parser.Lex();
 
   if (Val == 16) {
     if (!hasThumb()) {
-      //Error(L, "target does not support Thumb mode");
+      Error(L, "target does not support Thumb mode");
       return false;
     }
 
@@ -9203,7 +9203,7 @@ bool ARMAsmParser::parseDirectiveCode(SMLoc L) {
     getParser().getStreamer().EmitAssemblerFlag(MCAF_Code16);
   } else {
     if (!hasARM()) {
-      //Error(L, "target does not support ARM mode");
+      Error(L, "target does not support ARM mode");
       return false;
     }
 
@@ -9225,21 +9225,21 @@ bool ARMAsmParser::parseDirectiveReq(StringRef Name, SMLoc L) {
   unsigned int ErrorCode;
   if (ParseRegister(Reg, SRegLoc, ERegLoc, ErrorCode)) {
     Parser.eatToEndOfStatement();
-    //Error(SRegLoc, "register name expected");
+    Error(SRegLoc, "register name expected");
     return false;
   }
 
   // Shouldn't be anything else.
   if (Parser.getTok().isNot(AsmToken::EndOfStatement)) {
     Parser.eatToEndOfStatement();
-    //Error(Parser.getTok().getLoc(), "unexpected input in .req directive.");
+    Error(Parser.getTok().getLoc(), "unexpected input in .req directive.");
     return false;
   }
 
   Parser.Lex(); // Consume the EndOfStatement
 
   if (RegisterReqs.insert(std::make_pair(Name, Reg)).first->second != Reg) {
-    //Error(SRegLoc, "redefinition of '" + Name + "' does not match original.");
+    Error(SRegLoc, "redefinition of '" + Name + "' does not match original.");
     return false;
   }
 
@@ -9252,7 +9252,7 @@ bool ARMAsmParser::parseDirectiveUnreq(SMLoc L) {
   MCAsmParser &Parser = getParser();
   if (Parser.getTok().isNot(AsmToken::Identifier)) {
     Parser.eatToEndOfStatement();
-    //Error(L, "unexpected input in .unreq directive.");
+    Error(L, "unexpected input in .unreq directive.");
     return false;
   }
   RegisterReqs.erase(Parser.getTok().getIdentifier().lower());
@@ -9268,7 +9268,7 @@ bool ARMAsmParser::parseDirectiveArch(SMLoc L) {
   unsigned ID = ARM::parseArch(Arch);
 
   if (ID == ARM::AK_INVALID) {
-    //Error(L, "Unknown arch name");
+    Error(L, "Unknown arch name");
     return false;
   }
 
@@ -9294,7 +9294,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
     StringRef Name = Parser.getTok().getIdentifier();
     Tag = ARMBuildAttrs::AttrTypeFromString(Name);
     if (Tag == -1) {
-      //Error(TagLoc, "attribute name not recognised: " + Name);
+      Error(TagLoc, "attribute name not recognised: " + Name);
       Parser.eatToEndOfStatement();
       return false;
     }
@@ -9310,7 +9310,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
 
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(AttrExpr);
     if (!CE) {
-      //Error(TagLoc, "expected numeric constant");
+      Error(TagLoc, "expected numeric constant");
       Parser.eatToEndOfStatement();
       return false;
     }
@@ -9319,7 +9319,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
   }
 
   if (Parser.getTok().isNot(AsmToken::Comma)) {
-    //Error(Parser.getTok().getLoc(), "comma expected");
+    Error(Parser.getTok().getLoc(), "comma expected");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -9345,7 +9345,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
 
   if (IsIntegerValue) {
     const MCExpr *ValueExpr;
-    //SMLoc ValueExprLoc = Parser.getTok().getLoc();
+    SMLoc ValueExprLoc = Parser.getTok().getLoc();
     if (Parser.parseExpression(ValueExpr)) {
       Parser.eatToEndOfStatement();
       return false;
@@ -9353,7 +9353,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
 
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ValueExpr);
     if (!CE) {
-      //Error(ValueExprLoc, "expected numeric constant");
+      Error(ValueExprLoc, "expected numeric constant");
       Parser.eatToEndOfStatement();
       return false;
     }
@@ -9365,7 +9365,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
     if (Parser.getTok().isNot(AsmToken::Comma))
       IsStringValue = false;
     if (Parser.getTok().isNot(AsmToken::Comma)) {
-      //Error(Parser.getTok().getLoc(), "comma expected");
+      Error(Parser.getTok().getLoc(), "comma expected");
       Parser.eatToEndOfStatement();
       return false;
     } else {
@@ -9375,7 +9375,7 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L)
 
   if (IsStringValue) {
     if (Parser.getTok().isNot(AsmToken::String)) {
-      //Error(Parser.getTok().getLoc(), "bad string constant");
+      Error(Parser.getTok().getLoc(), "bad string constant");
       Parser.eatToEndOfStatement();
       return false;
     }
@@ -9408,7 +9408,7 @@ bool ARMAsmParser::parseDirectiveCPU(SMLoc L) {
   // FIXME: This is using table-gen data, but should be moved to
   // ARMTargetParser once that is table-gen'd.
   if (!getSTI().isCPUStringValid(CPU)) {
-    //Error(L, "Unknown CPU name");
+    Error(L, "Unknown CPU name");
     return false;
   }
 
@@ -9422,13 +9422,13 @@ bool ARMAsmParser::parseDirectiveCPU(SMLoc L) {
 ///  ::= .fpu str
 bool ARMAsmParser::parseDirectiveFPU(SMLoc L)
 {
-  //SMLoc FPUNameLoc = getTok().getLoc();
+  SMLoc FPUNameLoc = getTok().getLoc();
   StringRef FPU = getParser().parseStringToEndOfStatement().trim();
 
   unsigned ID = ARM::parseFPU(FPU);
   std::vector<const char *> Features;
   if (!ARM::getFPUFeatures(ID, Features)) {
-    //Error(FPUNameLoc, "Unknown FPU name");
+    Error(FPUNameLoc, "Unknown FPU name");
     return false;
   }
 
@@ -9445,7 +9445,7 @@ bool ARMAsmParser::parseDirectiveFPU(SMLoc L)
 ///  ::= .fnstart
 bool ARMAsmParser::parseDirectiveFnStart(SMLoc L) {
   if (UC.hasFnStart()) {
-    //Error(L, ".fnstart starts before the end of previous one");
+    Error(L, ".fnstart starts before the end of previous one");
     UC.emitFnStartLocNotes();
     return false;
   }
@@ -9464,7 +9464,7 @@ bool ARMAsmParser::parseDirectiveFnStart(SMLoc L) {
 bool ARMAsmParser::parseDirectiveFnEnd(SMLoc L) {
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .fnend directive");
+    Error(L, ".fnstart must precede .fnend directive");
     return false;
   }
 
@@ -9482,16 +9482,16 @@ bool ARMAsmParser::parseDirectiveCantUnwind(SMLoc L) {
 
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .cantunwind directive");
+    Error(L, ".fnstart must precede .cantunwind directive");
     return false;
   }
   if (UC.hasHandlerData()) {
-    //Error(L, ".cantunwind can't be used with .handlerdata directive");
+    Error(L, ".cantunwind can't be used with .handlerdata directive");
     UC.emitHandlerDataLocNotes();
     return false;
   }
   if (UC.hasPersonality()) {
-    //Error(L, ".cantunwind can't be used with .personality directive");
+    Error(L, ".cantunwind can't be used with .personality directive");
     UC.emitPersonalityLocNotes();
     return false;
   }
@@ -9510,22 +9510,22 @@ bool ARMAsmParser::parseDirectivePersonality(SMLoc L) {
 
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .personality directive");
+    Error(L, ".fnstart must precede .personality directive");
     return false;
   }
   if (UC.cantUnwind()) {
-    //Error(L, ".personality can't be used with .cantunwind directive");
+    Error(L, ".personality can't be used with .cantunwind directive");
     UC.emitCantUnwindLocNotes();
     return false;
   }
   if (UC.hasHandlerData()) {
-    //Error(L, ".personality must precede .handlerdata directive");
+    Error(L, ".personality must precede .handlerdata directive");
     UC.emitHandlerDataLocNotes();
     return false;
   }
   if (HasExistingPersonality) {
     Parser.eatToEndOfStatement();
-    //Error(L, "multiple personality directives");
+    Error(L, "multiple personality directives");
     UC.emitPersonalityLocNotes();
     return false;
   }
@@ -9533,7 +9533,7 @@ bool ARMAsmParser::parseDirectivePersonality(SMLoc L) {
   // Parse the name of the personality routine
   if (Parser.getTok().isNot(AsmToken::Identifier)) {
     Parser.eatToEndOfStatement();
-    //Error(L, "unexpected input in .personality directive.");
+    Error(L, "unexpected input in .personality directive.");
     return false;
   }
   StringRef Name(Parser.getTok().getIdentifier());
@@ -9551,11 +9551,11 @@ bool ARMAsmParser::parseDirectiveHandlerData(SMLoc L) {
 
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .personality directive");
+    Error(L, ".fnstart must precede .personality directive");
     return false;
   }
   if (UC.cantUnwind()) {
-    //Error(L, ".handlerdata can't be used with .cantunwind directive");
+    Error(L, ".handlerdata can't be used with .cantunwind directive");
     UC.emitCantUnwindLocNotes();
     return false;
   }
@@ -9570,39 +9570,39 @@ bool ARMAsmParser::parseDirectiveSetFP(SMLoc L) {
   MCAsmParser &Parser = getParser();
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .setfp directive");
+    Error(L, ".fnstart must precede .setfp directive");
     return false;
   }
   if (UC.hasHandlerData()) {
-    //Error(L, ".setfp must precede .handlerdata directive");
+    Error(L, ".setfp must precede .handlerdata directive");
     return false;
   }
 
   // Parse fpreg
-  //SMLoc FPRegLoc = Parser.getTok().getLoc();
+  SMLoc FPRegLoc = Parser.getTok().getLoc();
   int FPReg = tryParseRegister();
   if (FPReg == -1) {
-    //Error(FPRegLoc, "frame pointer register expected");
+    Error(FPRegLoc, "frame pointer register expected");
     return false;
   }
 
   // Consume comma
   if (Parser.getTok().isNot(AsmToken::Comma)) {
-    //Error(Parser.getTok().getLoc(), "comma expected");
+    Error(Parser.getTok().getLoc(), "comma expected");
     return false;
   }
   Parser.Lex(); // skip comma
 
   // Parse spreg
-  //SMLoc SPRegLoc = Parser.getTok().getLoc();
+  SMLoc SPRegLoc = Parser.getTok().getLoc();
   int SPReg = tryParseRegister();
   if (SPReg == -1) {
-    //Error(SPRegLoc, "stack pointer register expected");
+    Error(SPRegLoc, "stack pointer register expected");
     return false;
   }
 
   if (SPReg != ARM::SP && SPReg != UC.getFPReg()) {
-    //Error(SPRegLoc, "register should be either $sp or the latest fp register");
+    Error(SPRegLoc, "register should be either $sp or the latest fp register");
     return false;
   }
 
@@ -9616,21 +9616,21 @@ bool ARMAsmParser::parseDirectiveSetFP(SMLoc L) {
 
     if (Parser.getTok().isNot(AsmToken::Hash) &&
         Parser.getTok().isNot(AsmToken::Dollar)) {
-      //Error(Parser.getTok().getLoc(), "'#' expected");
+      Error(Parser.getTok().getLoc(), "'#' expected");
       return false;
     }
     Parser.Lex(); // skip hash token.
 
     const MCExpr *OffsetExpr;
-    //SMLoc ExLoc = Parser.getTok().getLoc();
+    SMLoc ExLoc = Parser.getTok().getLoc();
     SMLoc EndLoc;
     if (getParser().parseExpression(OffsetExpr, EndLoc)) {
-      //Error(ExLoc, "malformed setfp offset");
+      Error(ExLoc, "malformed setfp offset");
       return false;
     }
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(OffsetExpr);
     if (!CE) {
-      //Error(ExLoc, "setfp offset must be an immediate");
+      Error(ExLoc, "setfp offset must be an immediate");
       return false;
     }
 
@@ -9648,32 +9648,32 @@ bool ARMAsmParser::parseDirectivePad(SMLoc L) {
   MCAsmParser &Parser = getParser();
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .pad directive");
+    Error(L, ".fnstart must precede .pad directive");
     return false;
   }
   if (UC.hasHandlerData()) {
-    //Error(L, ".pad must precede .handlerdata directive");
+    Error(L, ".pad must precede .handlerdata directive");
     return false;
   }
 
   // Parse the offset
   if (Parser.getTok().isNot(AsmToken::Hash) &&
       Parser.getTok().isNot(AsmToken::Dollar)) {
-    //Error(Parser.getTok().getLoc(), "'#' expected");
+    Error(Parser.getTok().getLoc(), "'#' expected");
     return false;
   }
   Parser.Lex(); // skip hash token.
 
   const MCExpr *OffsetExpr;
-  //SMLoc ExLoc = Parser.getTok().getLoc();
+  SMLoc ExLoc = Parser.getTok().getLoc();
   SMLoc EndLoc;
   if (getParser().parseExpression(OffsetExpr, EndLoc)) {
-    //Error(ExLoc, "malformed pad offset");
+    Error(ExLoc, "malformed pad offset");
     return false;
   }
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(OffsetExpr);
   if (!CE) {
-    //Error(ExLoc, "pad offset must be an immediate");
+    Error(ExLoc, "pad offset must be an immediate");
     return false;
   }
 
@@ -9687,11 +9687,11 @@ bool ARMAsmParser::parseDirectivePad(SMLoc L) {
 bool ARMAsmParser::parseDirectiveRegSave(SMLoc L, bool IsVector) {
   // Check the ordering of unwind directives
   if (!UC.hasFnStart()) {
-    //Error(L, ".fnstart must precede .save or .vsave directives");
+    Error(L, ".fnstart must precede .save or .vsave directives");
     return false;
   }
   if (UC.hasHandlerData()) {
-    //Error(L, ".save or .vsave must precede .handlerdata directive");
+    Error(L, ".save or .vsave must precede .handlerdata directive");
     return false;
   }
 
@@ -9703,11 +9703,11 @@ bool ARMAsmParser::parseDirectiveRegSave(SMLoc L, bool IsVector) {
     return false;
   ARMOperand &Op = (ARMOperand &)*Operands[0];
   if (!IsVector && !Op.isRegList()) {
-    //Error(L, ".save expects GPR registers");
+    Error(L, ".save expects GPR registers");
     return false;
   }
   if (IsVector && !Op.isDPRRegList()) {
-    //Error(L, ".vsave expects DPR registers");
+    Error(L, ".vsave expects DPR registers");
     return false;
   }
 
@@ -9733,14 +9733,14 @@ bool ARMAsmParser::parseDirectiveInst(SMLoc Loc, char Suffix) {
       break;
     default:
       Parser.eatToEndOfStatement();
-      //Error(Loc, "cannot determine Thumb instruction size, "
-      //           "use inst.n/inst.w instead");
+      Error(Loc, "cannot determine Thumb instruction size, "
+                "use inst.n/inst.w instead");
       return false;
     }
   } else {
     if (Suffix) {
       Parser.eatToEndOfStatement();
-      //Error(Loc, "width suffixes are invalid in ARM mode");
+      Error(Loc, "width suffixes are invalid in ARM mode");
       return false;
     }
     Width = 4;
@@ -9748,7 +9748,7 @@ bool ARMAsmParser::parseDirectiveInst(SMLoc Loc, char Suffix) {
 
   if (getLexer().is(AsmToken::EndOfStatement)) {
     Parser.eatToEndOfStatement();
-    //Error(Loc, "expected expression following directive");
+    Error(Loc, "expected expression following directive");
     return false;
   }
 
@@ -9756,27 +9756,27 @@ bool ARMAsmParser::parseDirectiveInst(SMLoc Loc, char Suffix) {
     const MCExpr *Expr;
 
     if (getParser().parseExpression(Expr)) {
-      //Error(Loc, "expected expression");
+      Error(Loc, "expected expression");
       return false;
     }
 
     const MCConstantExpr *Value = dyn_cast_or_null<MCConstantExpr>(Expr);
     if (!Value) {
-      //Error(Loc, "expected constant expression");
+      Error(Loc, "expected constant expression");
       return false;
     }
 
     switch (Width) {
     case 2:
       if (Value->getValue() > 0xffff) {
-        //Error(Loc, "inst.n operand is too big, use inst.w instead");
+        Error(Loc, "inst.n operand is too big, use inst.w instead");
         return false;
       }
       break;
     case 4:
       if (Value->getValue() > 0xffffffff) {
-        //Error(Loc,
-        //      StringRef(Suffix ? "inst.w" : "inst") + " operand is too big");
+        Error(Loc,
+             StringRef(Suffix ? "inst.w" : "inst") + " operand is too big");
         return false;
       }
       break;
@@ -9790,7 +9790,7 @@ bool ARMAsmParser::parseDirectiveInst(SMLoc Loc, char Suffix) {
       break;
 
     if (getLexer().isNot(AsmToken::Comma)) {
-      //Error(Loc, "unexpected token in directive");
+      Error(Loc, "unexpected token in directive");
       return false;
     }
 
@@ -9841,30 +9841,30 @@ bool ARMAsmParser::parseDirectivePersonalityIndex(SMLoc L) {
 
   if (!UC.hasFnStart()) {
     Parser.eatToEndOfStatement();
-    //Error(L, ".fnstart must precede .personalityindex directive");
+    Error(L, ".fnstart must precede .personalityindex directive");
     return false;
   }
   if (UC.cantUnwind()) {
     Parser.eatToEndOfStatement();
-    //Error(L, ".personalityindex cannot be used with .cantunwind");
+    Error(L, ".personalityindex cannot be used with .cantunwind");
     UC.emitCantUnwindLocNotes();
     return false;
   }
   if (UC.hasHandlerData()) {
     Parser.eatToEndOfStatement();
-    //Error(L, ".personalityindex must precede .handlerdata directive");
+    Error(L, ".personalityindex must precede .handlerdata directive");
     UC.emitHandlerDataLocNotes();
     return false;
   }
   if (HasExistingPersonality) {
     Parser.eatToEndOfStatement();
-    //Error(L, "multiple personality directives");
+    Error(L, "multiple personality directives");
     UC.emitPersonalityLocNotes();
     return false;
   }
 
   const MCExpr *IndexExpression;
-  //SMLoc IndexLoc = Parser.getTok().getLoc();
+  SMLoc IndexLoc = Parser.getTok().getLoc();
   if (Parser.parseExpression(IndexExpression)) {
     Parser.eatToEndOfStatement();
     return false;
@@ -9873,13 +9873,13 @@ bool ARMAsmParser::parseDirectivePersonalityIndex(SMLoc L) {
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(IndexExpression);
   if (!CE) {
     Parser.eatToEndOfStatement();
-    //Error(IndexLoc, "index must be a constant number");
+    Error(IndexLoc, "index must be a constant number");
     return false;
   }
   if (CE->getValue() < 0 ||
       CE->getValue() >= ARM::EHABI::NUM_PERSONALITY_INDEX) {
     Parser.eatToEndOfStatement();
-    //Error(IndexLoc, "personality routine index should be in range [0-3]");
+    Error(IndexLoc, "personality routine index should be in range [0-3]");
     return false;
   }
 
@@ -9893,24 +9893,24 @@ bool ARMAsmParser::parseDirectiveUnwindRaw(SMLoc L) {
   MCAsmParser &Parser = getParser();
   if (!UC.hasFnStart()) {
     Parser.eatToEndOfStatement();
-    //Error(L, ".fnstart must precede .unwind_raw directives");
+    Error(L, ".fnstart must precede .unwind_raw directives");
     return false;
   }
 
   int64_t StackOffset;
 
   const MCExpr *OffsetExpr;
-  //SMLoc OffsetLoc = getLexer().getLoc();
+  SMLoc OffsetLoc = getLexer().getLoc();
   if (getLexer().is(AsmToken::EndOfStatement) ||
       getParser().parseExpression(OffsetExpr)) {
-    //Error(OffsetLoc, "expected expression");
+    Error(OffsetLoc, "expected expression");
     Parser.eatToEndOfStatement();
     return false;
   }
 
   const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(OffsetExpr);
   if (!CE) {
-    //Error(OffsetLoc, "offset must be a constant");
+    Error(OffsetLoc, "offset must be a constant");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -9918,7 +9918,7 @@ bool ARMAsmParser::parseDirectiveUnwindRaw(SMLoc L) {
   StackOffset = CE->getValue();
 
   if (getLexer().isNot(AsmToken::Comma)) {
-    //Error(getLexer().getLoc(), "expected comma");
+    Error(getLexer().getLoc(), "expected comma");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -9928,23 +9928,23 @@ bool ARMAsmParser::parseDirectiveUnwindRaw(SMLoc L) {
   for (;;) {
     const MCExpr *OE;
 
-    //SMLoc OpcodeLoc = getLexer().getLoc();
+    SMLoc OpcodeLoc = getLexer().getLoc();
     if (getLexer().is(AsmToken::EndOfStatement) || Parser.parseExpression(OE)) {
-      //Error(OpcodeLoc, "expected opcode expression");
+      Error(OpcodeLoc, "expected opcode expression");
       Parser.eatToEndOfStatement();
       return false;
     }
 
     const MCConstantExpr *OC = dyn_cast<MCConstantExpr>(OE);
     if (!OC) {
-      //Error(OpcodeLoc, "opcode value must be a constant");
+      Error(OpcodeLoc, "opcode value must be a constant");
       Parser.eatToEndOfStatement();
       return false;
     }
 
     const int64_t Opcode = OC->getValue();
     if (Opcode & ~0xff) {
-      //Error(OpcodeLoc, "invalid opcode");
+      Error(OpcodeLoc, "invalid opcode");
       Parser.eatToEndOfStatement();
       return false;
     }
@@ -9955,7 +9955,7 @@ bool ARMAsmParser::parseDirectiveUnwindRaw(SMLoc L) {
       break;
 
     if (getLexer().isNot(AsmToken::Comma)) {
-      //Error(getLexer().getLoc(), "unexpected token in directive");
+      Error(getLexer().getLoc(), "unexpected token in directive");
       Parser.eatToEndOfStatement();
       return false;
     }
@@ -9976,7 +9976,7 @@ bool ARMAsmParser::parseDirectiveTLSDescSeq(SMLoc L)
   MCAsmParser &Parser = getParser();
 
   if (getLexer().isNot(AsmToken::Identifier)) {
-    //TokError("expected variable after '.tlsdescseq' directive");
+    TokError("expected variable after '.tlsdescseq' directive");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -9987,7 +9987,7 @@ bool ARMAsmParser::parseDirectiveTLSDescSeq(SMLoc L)
   Lex();
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(Parser.getTok().getLoc(), "unexpected token");
+    Error(Parser.getTok().getLoc(), "unexpected token");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -10002,26 +10002,26 @@ bool ARMAsmParser::parseDirectiveMovSP(SMLoc L) {
   MCAsmParser &Parser = getParser();
   if (!UC.hasFnStart()) {
     Parser.eatToEndOfStatement();
-    //Error(L, ".fnstart must precede .movsp directives");
+    Error(L, ".fnstart must precede .movsp directives");
     return false;
   }
   if (UC.getFPReg() != ARM::SP) {
     Parser.eatToEndOfStatement();
-    //Error(L, "unexpected .movsp directive");
+    Error(L, "unexpected .movsp directive");
     return false;
   }
 
-  //SMLoc SPRegLoc = Parser.getTok().getLoc();
+  SMLoc SPRegLoc = Parser.getTok().getLoc();
   int SPReg = tryParseRegister();
   if (SPReg == -1) {
     Parser.eatToEndOfStatement();
-    //Error(SPRegLoc, "register expected");
+    Error(SPRegLoc, "register expected");
     return false;
   }
 
   if (SPReg == ARM::SP || SPReg == ARM::PC) {
     Parser.eatToEndOfStatement();
-    //Error(SPRegLoc, "sp and pc are not permitted in .movsp directive");
+    Error(SPRegLoc, "sp and pc are not permitted in .movsp directive");
     return false;
   }
 
@@ -10030,24 +10030,24 @@ bool ARMAsmParser::parseDirectiveMovSP(SMLoc L) {
     Parser.Lex();
 
     if (Parser.getTok().isNot(AsmToken::Hash)) {
-      //Error(Parser.getTok().getLoc(), "expected #constant");
+      Error(Parser.getTok().getLoc(), "expected #constant");
       Parser.eatToEndOfStatement();
       return false;
     }
     Parser.Lex();
 
     const MCExpr *OffsetExpr;
-    //SMLoc OffsetLoc = Parser.getTok().getLoc();
+    SMLoc OffsetLoc = Parser.getTok().getLoc();
     if (Parser.parseExpression(OffsetExpr)) {
       Parser.eatToEndOfStatement();
-      //Error(OffsetLoc, "malformed offset expression");
+      Error(OffsetLoc, "malformed offset expression");
       return false;
     }
 
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(OffsetExpr);
     if (!CE) {
       Parser.eatToEndOfStatement();
-      //Error(OffsetLoc, "offset must be an immediate constant");
+      Error(OffsetLoc, "offset must be an immediate constant");
       return false;
     }
 
@@ -10065,19 +10065,19 @@ bool ARMAsmParser::parseDirectiveMovSP(SMLoc L) {
 bool ARMAsmParser::parseDirectiveObjectArch(SMLoc L) {
   MCAsmParser &Parser = getParser();
   if (getLexer().isNot(AsmToken::Identifier)) {
-    //Error(getLexer().getLoc(), "unexpected token");
+    Error(getLexer().getLoc(), "unexpected token");
     Parser.eatToEndOfStatement();
     return false;
   }
 
   StringRef Arch = Parser.getTok().getString();
-  //SMLoc ArchLoc = Parser.getTok().getLoc();
+  SMLoc ArchLoc = Parser.getTok().getLoc();
   getLexer().Lex();
 
   unsigned ID = ARM::parseArch(Arch);
 
   if (ID == ARM::AK_INVALID) {
-    //Error(ArchLoc, "unknown architecture '" + Arch + "'");
+    Error(ArchLoc, "unknown architecture '" + Arch + "'");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -10085,7 +10085,7 @@ bool ARMAsmParser::parseDirectiveObjectArch(SMLoc L) {
   getTargetStreamer().emitObjectArch(ID);
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
-    //Error(getLexer().getLoc(), "unexpected token");
+    Error(getLexer().getLoc(), "unexpected token");
     Parser.eatToEndOfStatement();
   }
 
@@ -10117,13 +10117,13 @@ bool ARMAsmParser::parseDirectiveThumbSet(SMLoc L)
 
   StringRef Name;
   if (Parser.parseIdentifier(Name)) {
-    //TokError("expected identifier after '.thumb_set'");
+    TokError("expected identifier after '.thumb_set'");
     Parser.eatToEndOfStatement();
     return false;
   }
 
   if (getLexer().isNot(AsmToken::Comma)) {
-    //TokError("expected comma after name '" + Name + "'");
+    TokError("expected comma after name '" + Name + "'");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -10187,7 +10187,7 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L)
   MCAsmParser &Parser = getParser();
 
   if (getLexer().isNot(AsmToken::Identifier)) {
-    //Error(getLexer().getLoc(), "unexpected token");
+    Error(getLexer().getLoc(), "unexpected token");
     Parser.eatToEndOfStatement();
     return false;
   }
@@ -10213,8 +10213,8 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L)
       report_fatal_error("unsupported architectural extension: " + Name);
 
     if ((getAvailableFeatures() & Extension.ArchCheck) != Extension.ArchCheck) {
-      //Error(ExtLoc, "architectural extension '" + Name + "' is not "
-      //      "allowed for the current base architecture");
+      Error(ExtLoc, "architectural extension '" + Name + "' is not "
+            "allowed for the current base architecture");
       return false;
     }
 
@@ -10229,7 +10229,7 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L)
     return false;
   }
 
-  //Error(ExtLoc, "unknown architectural extension: " + Name);
+  Error(ExtLoc, "unknown architectural extension: " + Name);
   Parser.eatToEndOfStatement();
   return false;
 }

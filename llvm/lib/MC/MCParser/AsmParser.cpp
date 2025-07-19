@@ -732,7 +732,7 @@ size_t AsmParser::Run(bool NoInitialTextSection, uint64_t Address, bool NoFinali
 
   if (TheCondState.TheCond != StartingCondState.TheCond ||
       TheCondState.Ignore != StartingCondState.Ignore) {
-    //return TokError("unmatched .ifs or .elses");
+    TokError("unmatched .ifs or .elses");
     KsError = KS_ERR_ASM_DIRECTIVE_TOKEN;
     return 0;
   }
@@ -751,8 +751,8 @@ size_t AsmParser::Run(bool NoInitialTextSection, uint64_t Address, bool NoFinali
         // FIXME: We would really like to refer back to where the symbol was
         // first referenced for a source location. We need to add something
         // to track that. Currently, we just point to the end of the file.
-        //return Error(getLexer().getLoc(), "assembler local symbol '" +
-        //                                      Sym->getName() + "' not defined");    // qq: set KsError, then return 0
+        Error(getLexer().getLoc(), "assembler local symbol '" +
+                                       Sym->getName() + "' not defined");    // qq: set KsError, then return 0
         KsError = KS_ERR_ASM_SYMBOL_MISSING;
         return 0;
       }
@@ -5236,15 +5236,14 @@ bool AsmParser::parseDirectiveError(SMLoc L, bool WithMessage)
   }
 
   if (!WithMessage) {
-    //return Error(L, ".err encountered");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
-    return true;
+    return Error(L, ".err encountered");
   }
 
   StringRef Message = ".error directive invoked in source file";
   if (Lexer.isNot(AsmToken::EndOfStatement)) {
     if (Lexer.isNot(AsmToken::String)) {
-      //TokError(".error argument must be a string");
+      TokError(".error argument must be a string");
       eatToEndOfStatement();
       KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
       return true;
@@ -5586,7 +5585,7 @@ void AsmParser::instantiateMacroLikeBody(MCAsmMacro *M, SMLoc DirectiveLoc,
 bool AsmParser::parseDirectiveRept(SMLoc DirectiveLoc, StringRef Dir)
 {
   const MCExpr *CountExpr;
-  //SMLoc CountLoc = getTok().getLoc();
+  SMLoc CountLoc = getTok().getLoc();
   if (parseExpression(CountExpr)) {
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
@@ -5595,13 +5594,13 @@ bool AsmParser::parseDirectiveRept(SMLoc DirectiveLoc, StringRef Dir)
   int64_t Count;
   if (!CountExpr->evaluateAsAbsolute(Count)) {
     eatToEndOfStatement();
-    //return Error(CountLoc, "unexpected token in '" + Dir + "' directive");
+    Error(CountLoc, "unexpected token in '" + Dir + "' directive");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
 
   if (Count < 0) {
-    //return Error(CountLoc, "Count is negative");
+    Error(CountLoc, "Count is negative");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
@@ -5778,20 +5777,20 @@ bool AsmParser::parseDirectiveMSEmit(SMLoc IDLoc, ParseStatementInfo &Info,
                                      size_t Len)
 {
   const MCExpr *Value;
-  //SMLoc ExprLoc = getLexer().getLoc();
+  SMLoc ExprLoc = getLexer().getLoc();
   if (parseExpression(Value)) {
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
   const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(Value);
   if (!MCE) {
-    //return Error(ExprLoc, "unexpected expression in _emit");
+    Error(ExprLoc, "unexpected expression in _emit");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
   uint64_t IntValue = MCE->getValue();
   if (!isUInt<8>(IntValue) && !isInt<8>(IntValue)) {
-    //return Error(ExprLoc, "literal value out of range for directive");
+    Error(ExprLoc, "literal value out of range for directive");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
@@ -5803,20 +5802,20 @@ bool AsmParser::parseDirectiveMSEmit(SMLoc IDLoc, ParseStatementInfo &Info,
 bool AsmParser::parseDirectiveMSAlign(SMLoc IDLoc, ParseStatementInfo &Info)
 {
   const MCExpr *Value;
-  //SMLoc ExprLoc = getLexer().getLoc();
+  SMLoc ExprLoc = getLexer().getLoc();
   if (parseExpression(Value)) {
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
   const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(Value);
   if (!MCE) {
-    //return Error(ExprLoc, "unexpected expression in align");
+    Error(ExprLoc, "unexpected expression in align");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
   uint64_t IntValue = MCE->getValue();
   if (!isPowerOf2_64(IntValue)) {
-    //return Error(ExprLoc, "literal value not a power of two greater then zero");
+    Error(ExprLoc, "literal value not a power of two greater then zero");
     KsError = KS_ERR_ASM_DIRECTIVE_INVALID;
     return true;
   }
@@ -6099,10 +6098,10 @@ bool parseAssignmentExpression(StringRef Name, bool allow_redef,
   MCAsmLexer &Lexer = Parser.getLexer();
 
   // FIXME: Use better location, we should use proper tokens.
-  //SMLoc EqualLoc = Lexer.getLoc();
+  SMLoc EqualLoc = Lexer.getLoc();
 
   if (Parser.parseExpression(Value)) {
-    //Parser.TokError("missing expression");
+    Parser.TokError("missing expression");
     Parser.eatToEndOfStatement();
     return true;
   }
@@ -6127,24 +6126,20 @@ bool parseAssignmentExpression(StringRef Name, bool allow_redef,
     // FIXME: Diagnostics. Note the location of the definition as a label.
     // FIXME: Diagnose assignment to protected identifier (e.g., register name).
     if (isSymbolUsedInExpression(Sym, Value))
-      //return Parser.Error(EqualLoc, "Recursive use of '" + Name + "'");
-      return true;
+      return Parser.Error(EqualLoc, "Recursive use of '" + Name + "'");
     else if (Sym->isUndefined(/*SetUsed*/ false) && !Sym->isUsed() &&
              !Sym->isVariable())
       ; // Allow redefinitions of undefined symbols only used in directives.
     else if (Sym->isVariable() && !Sym->isUsed() && allow_redef)
       ; // Allow redefinitions of variables that haven't yet been used.
     else if (!Sym->isUndefined() && (!Sym->isVariable() || !allow_redef))
-      //return Parser.Error(EqualLoc, "redefinition of '" + Name + "'");
-      return true;
+      return Parser.Error(EqualLoc, "redefinition of '" + Name + "'");
     else if (!Sym->isVariable())
-      //return Parser.Error(EqualLoc, "invalid assignment to '" + Name + "'");
-      return true;
+      return Parser.Error(EqualLoc, "invalid assignment to '" + Name + "'");
     else if (!isa<MCConstantExpr>(Sym->getVariableValue()))
-      //return Parser.Error(EqualLoc,
-      //                    "invalid reassignment of non-absolute variable '" +
-      //                        Name + "'");
-      return true;
+      return Parser.Error(EqualLoc,
+                   "invalid reassignment of non-absolute variable '" +
+                       Name + "'");
   } else if (Name == ".") {
     Parser.getStreamer().emitValueToOffset(Value, 0);
     return false;

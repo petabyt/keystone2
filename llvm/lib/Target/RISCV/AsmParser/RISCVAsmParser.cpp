@@ -804,7 +804,6 @@ bool RISCVAsmParser::generateImmOutOfRangeError(
     Twine Msg = "immediate must be an integer in the range") {
   SMLoc ErrorLoc = ((RISCVOperand &)*Operands[ErrorInfo]).getStartLoc();
   return Error(ErrorLoc, Msg + " [" + Twine(Lower) + ", " + Twine(Upper) + "]");
-  //FIXME: gracefully return error to keystone
 }
 
 bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
@@ -824,27 +823,25 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return rc;
     }
   case Match_MissingFeature:
-    // Return error to Keystone 
     ErrorCode = KS_ERR_ASM_RISCV_MISSINGFEATURE;
-    return true;
+    return Error(IDLoc, "instruction use requires an option to be enabled");
   case Match_MnemonicFail:
-    // Return error to Keystone
     ErrorCode = KS_ERR_ASM_RISCV_MNEMONICFAIL;
-    return true;
+    return Error(IDLoc, "unrecognized instruction mnemonic");
   case Match_InvalidOperand: {
     SMLoc ErrorLoc = IDLoc;
     if (ErrorInfo != ~0U) {
-      if (ErrorInfo >= Operands.size())
-        // Return error to Keystone
+      if (ErrorInfo >= Operands.size()) {
         ErrorCode = KS_ERR_ASM_RISCV_INVALIDOPERAND;
+        return Error(ErrorLoc, "too few operands for instruction");
+      }
 
       ErrorLoc = ((RISCVOperand &)*Operands[ErrorInfo]).getStartLoc();
       if (ErrorLoc == SMLoc())
         ErrorLoc = IDLoc;
     }
-    // Return error to Keystone
     ErrorCode = KS_ERR_ASM_RISCV_INVALIDOPERAND;
-    return true;
+    return Error(ErrorLoc, "invalid operand for instruction");
   }
   }
 
@@ -855,8 +852,6 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     SMLoc ErrorLoc = IDLoc;
     if (ErrorInfo != ~0U && ErrorInfo >= Operands.size())
         return Error(ErrorLoc, "too few operands for instruction");
-        // throw a separate error, since there is no errorcode in Keystone
-        // FIXME: add situation specific error to indicate this and avoid throwing errors in favor of gracefully returning keystone error code
   }
 
   switch(Result) {
@@ -866,7 +861,6 @@ bool RISCVAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     if (isRV64()) {
       SMLoc ErrorLoc = ((RISCVOperand &)*Operands[ErrorInfo]).getStartLoc();
       return Error(ErrorLoc, "operand must be a constant 64-bit integer");
-      //FIXME: gracefully return error to keystone
     }
     return generateImmOutOfRangeError(Operands, ErrorInfo,
                                       std::numeric_limits<int32_t>::min(),

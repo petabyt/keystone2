@@ -6348,9 +6348,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     unsigned Rt = MRI->getEncodingValue(Inst.getOperand(0).getReg());
     unsigned Rt2 = MRI->getEncodingValue(Inst.getOperand(1).getReg());
     if (Rt2 != Rt + 1)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "source operands must be sequential");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "source operands must be sequential");
     return false;
   }
   case ARM::STRD_PRE:
@@ -6359,9 +6358,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     unsigned Rt = MRI->getEncodingValue(Inst.getOperand(1).getReg());
     unsigned Rt2 = MRI->getEncodingValue(Inst.getOperand(2).getReg());
     if (Rt2 != Rt + 1)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "source operands must be sequential");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "source operands must be sequential");
     return false;
   }
   case ARM::STR_PRE_IMM:
@@ -6379,9 +6377,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     const unsigned Rn = MRI->getEncodingValue(Inst.getOperand(2).getReg());
 
     if (Rt == Rn)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "source register and base register can't be identical");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "source register and base register can't be identical");
     return false;
   }
   case ARM::LDR_PRE_IMM:
@@ -6403,9 +6400,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     const unsigned Rn = MRI->getEncodingValue(Inst.getOperand(2).getReg());
 
     if (Rt == Rn)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "destination register and base register can't be identical");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "destination register and base register can't be identical");
     return false;
   }
   case ARM::SBFX:
@@ -6414,9 +6410,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     unsigned LSB = Inst.getOperand(2).getImm();
     unsigned Widthm1 = Inst.getOperand(3).getImm();
     if (Widthm1 >= 32 - LSB)
-      //return Error(Operands[5]->getStartLoc(),
-      //             "bitfield width must be in range [1,32-lsb]");
-      return true;
+      return Error(Operands[5]->getStartLoc(),
+                   "bitfield width must be in range [1,32-lsb]");
     return false;
   }
   // Notionally handles ARM::tLDMIA_UPD too.
@@ -6433,21 +6428,18 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
          static_cast<ARMOperand &>(*Operands[3]).getToken() == "!");
     bool ListContainsBase;
     if (checkLowRegisterList(Inst, 3, Rn, 0, ListContainsBase) && !isThumbTwo())
-      //return Error(Operands[3 + HasWritebackToken]->getStartLoc(),
-      //             "registers must be in range r0-r7");
-      return true;
+      return Error(Operands[3 + HasWritebackToken]->getStartLoc(),
+                   "registers must be in range r0-r7");
     // If we should have writeback, then there should be a '!' token.
     if (!ListContainsBase && !HasWritebackToken && !isThumbTwo())
-      //return Error(Operands[2]->getStartLoc(),
-      //             "writeback operator '!' expected");
-      return true;
+      return Error(Operands[2]->getStartLoc(),
+                   "writeback operator '!' expected");
     // If we should not have writeback, there must not be a '!'. This is
     // true even for the 32-bit wide encodings.
     if (ListContainsBase && HasWritebackToken)
-      //return Error(Operands[3]->getStartLoc(),
-      //             "writeback operator '!' not allowed when base register "
-      //             "in register list");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "writeback operator '!' not allowed when base register "
+                   "in register list");
 
     if (validatetLDMRegList(Inst, Operands, 3))
       return true;
@@ -6462,9 +6454,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     if (!hasV7Ops())
       break;
     if (listContainsReg(Inst, 3, Inst.getOperand(0).getReg()))
-      //return Error(Operands.back()->getStartLoc(),
-      //             "writeback register not allowed in register list");
-      return true;
+      return Error(Operands.back()->getStartLoc(),
+                   "writeback register not allowed in register list");
     break;
   case ARM::t2LDMIA:
   case ARM::t2LDMDB:
@@ -6481,9 +6472,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
   case ARM::t2STMIA_UPD:
   case ARM::t2STMDB_UPD: {
     if (listContainsReg(Inst, 3, Inst.getOperand(0).getReg()))
-      //return Error(Operands.back()->getStartLoc(),
-      //             "writeback register not allowed in register list");
-      return true;
+      return Error(Operands.back()->getStartLoc(),
+                   "writeback register not allowed in register list");
 
     if (Opcode == ARM::t2LDMIA_UPD || Opcode == ARM::t2LDMDB_UPD) {
       if (validatetLDMRegList(Inst, Operands, 3))
@@ -6499,18 +6489,16 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
   case ARM::sysLDMDB_UPD:
   case ARM::sysLDMIB_UPD:
     if (!listContainsReg(Inst, 3, ARM::PC))
-      //return Error(Operands[4]->getStartLoc(),
-      //             "writeback register only allowed on system LDM "
-      //             "if PC in register-list");
-      return true;
+      return Error(Operands[4]->getStartLoc(),
+                   "writeback register only allowed on system LDM "
+                   "if PC in register-list");
     break;
   case ARM::sysSTMIA_UPD:
   case ARM::sysSTMDA_UPD:
   case ARM::sysSTMDB_UPD:
   case ARM::sysSTMIB_UPD:
-    //return Error(Operands[2]->getStartLoc(),
-    //             "system STM cannot have writeback register");
-    return true;
+    return Error(Operands[2]->getStartLoc(),
+                 "system STM cannot have writeback register");
   case ARM::tMUL: {
     // The second source operand must be the same register as the destination
     // operand.
@@ -6524,9 +6512,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
                                  ((ARMOperand &)*Operands[5]).getReg()) &&
         (((ARMOperand &)*Operands[3]).getReg() !=
          ((ARMOperand &)*Operands[4]).getReg())) {
-      //return Error(Operands[3]->getStartLoc(),
-      //             "destination register must match source register");
-      return true;
+      return Error(Operands[3]->getStartLoc(),
+                   "destination register must match source register");
     }
     break;
   }
@@ -6537,9 +6524,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     bool ListContainsBase;
     if (checkLowRegisterList(Inst, 2, 0, ARM::PC, ListContainsBase) &&
         !isThumbTwo())
-      //return Error(Operands[2]->getStartLoc(),
-      //             "registers must be in range r0-r7 or pc");
-      return true;
+      return Error(Operands[2]->getStartLoc(),
+                   "registers must be in range r0-r7 or pc");
     if (validatetLDMRegList(Inst, Operands, 2, !isMClass()))
       return true;
     break;
@@ -6548,9 +6534,8 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     bool ListContainsBase;
     if (checkLowRegisterList(Inst, 2, 0, ARM::LR, ListContainsBase) &&
         !isThumbTwo())
-      //return Error(Operands[2]->getStartLoc(),
-      //             "registers must be in range r0-r7 or lr");
-      return true;
+      return Error(Operands[2]->getStartLoc(),
+                   "registers must be in range r0-r7 or lr");
     if (validatetSTMRegList(Inst, Operands, 2))
       return true;
     break;
@@ -6560,17 +6545,15 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     InvalidLowList = checkLowRegisterList(Inst, 4, Inst.getOperand(0).getReg(),
                                           0, ListContainsBase);
     if (InvalidLowList && !isThumbTwo())
-      //return Error(Operands[4]->getStartLoc(),
-      //             "registers must be in range r0-r7");
-      return true;
+      return Error(Operands[4]->getStartLoc(),
+                   "registers must be in range r0-r7");
 
     // This would be converted to a 32-bit stm, but that's not valid if the
     // writeback register is in the list.
     if (InvalidLowList && ListContainsBase)
-      //return Error(Operands[4]->getStartLoc(),
-      //             "writeback operator '!' not allowed when base register "
-      //             "in register list");
-      return true;
+      return Error(Operands[4]->getStartLoc(),
+                   "writeback operator '!' not allowed when base register "
+                   "in register list");
 
     if (validatetSTMRegList(Inst, Operands, 4))
       return true;
@@ -6581,36 +6564,31 @@ bool ARMAsmParser::validateInstruction(MCInst &Inst,
     // same, we need thumb2 (for the wide encoding), or we have an error.
     if (!isThumbTwo() &&
         Inst.getOperand(0).getReg() != Inst.getOperand(2).getReg()) {
-      //return Error(Operands[4]->getStartLoc(),
-      //             "source register must be the same as destination");
-      return true;
+      return Error(Operands[4]->getStartLoc(),
+                   "source register must be the same as destination");
     }
     break;
   }
   // Final range checking for Thumb unconditional branch instructions.
   case ARM::tB:
     if (!(static_cast<ARMOperand &>(*Operands[2])).isSignedOffsetRel<11, 1>(Inst.getAddress()))
-      //return Error(Operands[2]->getStartLoc(), "branch target out of range");
-      return true;
+      return Error(Operands[2]->getStartLoc(), "branch target out of range");
     break;
   case ARM::t2B: {
     int op = (Operands[2]->isImm()) ? 2 : 3;
     if (!static_cast<ARMOperand &>(*Operands[op]).isSignedOffsetRel<24, 1>(Inst.getAddress()))
-      //return Error(Operands[op]->getStartLoc(), "branch target out of range");
-      return true;
+      return Error(Operands[op]->getStartLoc(), "branch target out of range");
     break;
   }
   // Final range checking for Thumb conditional branch instructions.
   case ARM::tBcc:
     if (!static_cast<ARMOperand &>(*Operands[2]).isSignedOffsetRel<8, 1>(Inst.getAddress()))
-      //return Error(Operands[2]->getStartLoc(), "branch target out of range");
-      return true;
+      return Error(Operands[2]->getStartLoc(), "branch target out of range");
     break;
   case ARM::t2Bcc: {
     int Op = (Operands[2]->isImm()) ? 2 : 3;
     if (!static_cast<ARMOperand &>(*Operands[Op]).isSignedOffsetRel<20, 1>(Inst.getAddress()))
-      //return Error(Operands[Op]->getStartLoc(), "branch target out of range");
-      return true;
+      return Error(Operands[Op]->getStartLoc(), "branch target out of range");
     break;
   }
   case ARM::MOVi16:
@@ -10215,7 +10193,7 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L)
   }
 
   StringRef Name = Parser.getTok().getString();
-  //SMLoc ExtLoc = Parser.getTok().getLoc();
+  SMLoc ExtLoc = Parser.getTok().getLoc();
   getLexer().Lex();
 
   bool EnableFeature = true;
@@ -10224,8 +10202,8 @@ bool ARMAsmParser::parseDirectiveArchExtension(SMLoc L)
     Name = Name.substr(2);
   }
   unsigned FeatureKind = ARM::parseArchExt(Name);
-  //if (FeatureKind == ARM::AEK_INVALID)
-  //  Error(ExtLoc, "unknown architectural extension: " + Name);
+  if (FeatureKind == ARM::AEK_INVALID)
+    Error(ExtLoc, "unknown architectural extension: " + Name);
 
   for (const auto &Extension : Extensions) {
     if (Extension.Kind != FeatureKind)

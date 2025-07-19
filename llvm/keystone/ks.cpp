@@ -662,6 +662,7 @@ int ks_asm(ks_engine *ks,
     CE = ks->TheTarget->createMCCodeEmitter(*ks->MCII, *ks->MRI, Ctx);
     if (!CE) {
         // memory insufficient
+        delete stream;
         return KS_ERR_NOMEM;
     }
     Streamer = ks->TheTarget->createMCObjectStreamer(
@@ -671,6 +672,7 @@ int ks_asm(ks_engine *ks,
     if (!Streamer) {
         // memory insufficient
         delete CE;
+        delete stream;
         return KS_ERR_NOMEM;
     }
 
@@ -678,6 +680,7 @@ int ks_asm(ks_engine *ks,
     ErrorOr<std::unique_ptr<MemoryBuffer>> BufferPtr = MemoryBuffer::getMemBuffer(assembly);
     if (BufferPtr.getError()) {
         delete Streamer;
+        delete stream;
         delete CE;
         return KS_ERR_NOMEM;
     }
@@ -691,6 +694,7 @@ int ks_asm(ks_engine *ks,
     if (!Parser) {
         delete Streamer;
         delete CE;
+        delete stream;
         // memory insufficient
         return KS_ERR_NOMEM;
     }
@@ -699,6 +703,7 @@ int ks_asm(ks_engine *ks,
         // memory insufficient
         delete Parser;
         delete Streamer;
+        delete stream;
         delete CE;
         return KS_ERR_NOMEM;
     }
@@ -724,6 +729,7 @@ int ks_asm(ks_engine *ks,
     delete Parser;
     delete CE;
     delete Streamer;
+    delete stream;
 
     if (ks->errnum >= KS_ERR_ASM)
         return -1;

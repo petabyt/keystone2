@@ -699,7 +699,7 @@ void llvm_ks::set_custom_ostream(raw_ostream *stream) {
 /// Use it like: errs() << "foo" << "bar";
 raw_ostream &llvm_ks::errs() {
   if (cutom_output_stream != nullptr) {
-    static raw_ostream& ref = *cutom_output_stream;
+    raw_ostream& ref = *cutom_output_stream;
     return ref;
   }
 

@@ -458,7 +458,7 @@ private:
   bool parseDirectiveBundleUnlock();
 
   // ".space", ".skip"
-  bool parseDirectiveSpace(StringRef IDVal);
+  bool parseDirectiveSpace(StringRef IDVal, uint64_t &Address);
 
   // .sleb128 (Signed=true) and .uleb128 (Signed=false)
   bool parseDirectiveLEB128(bool Signed);
@@ -718,6 +718,7 @@ size_t AsmParser::Run(bool NoInitialTextSection, uint64_t Address, bool NoFinali
     if (Info.KsError) {
         KsError = Info.KsError;
         if (Info.ParseError) {
+          TokError("Generic parse error");
           KsError = KS_ERR_ASM;
         }
         return 0;
@@ -851,7 +852,7 @@ bool AsmParser::parsePrimaryExprAux(const MCExpr *&Res, SMLoc &EndLoc, unsigned 
 {
   if (depth > 0x100) {
     KsError = KS_ERR_ASM_EXPR_TOKEN;
-    return true;
+    return TokError("depth > 0x100");
   }
   SMLoc FirstTokenLoc = getLexer().getLoc();
   AsmToken::TokenKind FirstTokenKind = Lexer.getKind();
@@ -1583,7 +1584,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       break;
     if (!valid) {
         Info.KsError = KS_ERR_ASM_LABEL_INVALID;
-        return true;
+        return Error(IDLoc, "Invalid label");
     }
     checkForValidSection();
 
@@ -1621,7 +1622,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       Sym = Ctx.createDirectionalLocalSymbol(LocalLabelVal, valid);
       if (!valid) {
           Info.KsError = KS_ERR_ASM_LABEL_INVALID;
-          return true;
+          return Error(IDLoc, "Invalid label");
       }
     }
 
@@ -1868,7 +1869,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       break;
     case DK_SPACE:
     case DK_SKIP:
-      is_error = parseDirectiveSpace(IDVal);
+      is_error = parseDirectiveSpace(IDVal, Address);
       break;
     case DK_FILE:
       is_error = parseDirectiveFile(IDLoc);
@@ -4618,7 +4619,7 @@ bool AsmParser::parseDirectiveBundleUnlock()
 
 /// parseDirectiveSpace
 /// ::= (.skip | .space) expression [ , expression ]
-bool AsmParser::parseDirectiveSpace(StringRef IDVal)
+bool AsmParser::parseDirectiveSpace(StringRef IDVal, uint64_t &Address)
 {
   checkForValidSection();
 
@@ -4653,6 +4654,8 @@ bool AsmParser::parseDirectiveSpace(StringRef IDVal)
 
   // FIXME: Sometimes the fill expr is 'nop' if it isn't supplied, instead of 0.
   getStreamer().EmitFill(NumBytes, FillExpr);
+
+  Address += NumBytes;
 
   return false;
 }

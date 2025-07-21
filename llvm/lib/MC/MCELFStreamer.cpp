@@ -144,9 +144,11 @@ void MCELFStreamer::ChangeSection(MCSection *Section,
   // Ensure the previous section gets aligned if necessary.
   setSectionAlignmentForBundling(Asm, CurSection);
   auto *SectionELF = static_cast<const MCSectionELF *>(Section);
-  const MCSymbol *Grp = SectionELF->getGroup();
-  if (Grp)
-    Asm.registerSymbol(*Grp);
+
+// daniel
+//  const MCSymbol *Grp = SectionELF->getGroup();
+//  if (Grp)
+//    Asm.registerSymbol(*Grp);
 
   this->MCObjectStreamer::ChangeSection(Section, Subsection);
   MCContext &Ctx = getContext();

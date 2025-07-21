@@ -711,9 +711,12 @@ int ks_asm(ks_engine *ks,
 
     Parser->setTargetParser(*TAP);
 
-    // TODO: optimize this to avoid setting up NASM every time we call ks_asm()
-    if (ks->arch == KS_ARCH_X86 && ks->syntax == KS_OPT_SYNTAX_NASM) {
-        Parser->initializeDirectiveKindMap(KS_OPT_SYNTAX_NASM);
+    if (ks->arch == KS_ARCH_X86) {
+        // TODO: optimize this to avoid setting up NASM every time we call ks_asm()
+        if (ks->syntax == KS_OPT_SYNTAX_NASM) {
+            Parser->initializeDirectiveKindMap(KS_OPT_SYNTAX_NASM);
+        }
+        // Daniel forced ; to be a comment on all x86 syntax rather than just nasm
         ks->MAI->setCommentString(";");
     }
 

@@ -8832,7 +8832,7 @@ bool ARMAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
         return true;
   case Match_MissingFeature: {
     ErrorCode = KS_ERR_ASM_ARM_MISSINGFEATURE;
-    return true;
+    return Error(IDLoc, "Missing feature");
   }
   case Match_InvalidOperand: {
     SMLoc ErrorLoc = IDLoc;

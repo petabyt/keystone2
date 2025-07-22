@@ -2856,6 +2856,9 @@ bool X86AsmParser::processInstruction(MCInst &Inst, const OperandVector &Ops)
     return true;
   }
 
+  // This patch from https://github.com/keystone-engine/keystone/compare/master...gaasedelen:keystone:master#diff-e59165466b272bef3f5e27c093e531409274532a72251917fd58e8141cf30656
+  // screwed up immediate parsing.
+#if 0
   // moveabs reg, [mem]
   case X86::MOV8ao64:
   case X86::MOV16ao64:
@@ -2931,6 +2934,7 @@ bool X86AsmParser::processInstruction(MCInst &Inst, const OperandVector &Ops)
 
     return true;
   }
+#endif
   }
 }
 

@@ -1133,21 +1133,22 @@ void ELFObjectWriter::writeObject(MCAssembler &Asm,
 
     MCSectionELF *RelSection = createRelocationSection(Ctx, Section);
 
-    if (SignatureSymbol) {
-      Asm.registerSymbol(*SignatureSymbol);
-      unsigned &GroupIdx = RevGroupMap[SignatureSymbol];
-      if (!GroupIdx) {
-        MCSectionELF *Group = Ctx.createELFGroupSection(SignatureSymbol);
-        GroupIdx = addToSectionTable(Group);
-        Group->setAlignment(4);
-        Groups.push_back(Group);
-      }
-      std::vector<const MCSectionELF *> &Members =
-          GroupMembers[SignatureSymbol];
-      Members.push_back(&Section);
-      if (RelSection)
-        Members.push_back(RelSection);
-    }
+// daniel disable registering these sections because of a bad pointer...
+//    if (SignatureSymbol) {
+//      Asm.registerSymbol(*SignatureSymbol);
+//      unsigned &GroupIdx = RevGroupMap[SignatureSymbol];
+//      if (!GroupIdx) {
+//        MCSectionELF *Group = Ctx.createELFGroupSection(SignatureSymbol);
+//        GroupIdx = addToSectionTable(Group);
+//        Group->setAlignment(4);
+//        Groups.push_back(Group);
+//      }
+//      std::vector<const MCSectionELF *> &Members =
+//          GroupMembers[SignatureSymbol];
+//      Members.push_back(&Section);
+//      if (RelSection)
+//        Members.push_back(RelSection);
+//    }
 
     SectionIndexMap[&Section] = addToSectionTable(&Section);
     if (RelSection) {

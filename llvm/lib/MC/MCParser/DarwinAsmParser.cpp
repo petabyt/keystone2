@@ -384,6 +384,7 @@ bool DarwinAsmParser::parseSectionSwitch(const char *Segment,
                                          const char *Section,
                                          unsigned TAA, unsigned Align,
                                          unsigned StubSize) {
+#if 0
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in section switching directive");
   Lex();
@@ -404,7 +405,7 @@ bool DarwinAsmParser::parseSectionSwitch(const char *Segment,
   // values into the implicitly aligned sections.
   if (Align)
     getStreamer().EmitValueToAlignment(Align);
-
+#endif
   return false;
 }
 

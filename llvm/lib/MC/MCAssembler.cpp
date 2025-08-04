@@ -155,7 +155,7 @@ bool MCAssembler::evaluateFixup(const MCAsmLayout &Layout,
   // fixup and records a relocation if one is needed.
   const MCExpr *Expr = Fixup.getValue();
   if (!Expr->evaluateAsRelocatable(Target, &Layout, &Fixup)) {
-    // getContext().reportError(Fixup.getLoc(), "expected relocatable expression");
+    getContext().reportError(Fixup.getLoc(), "expected relocatable expression");
     // Claim to have completely evaluated the fixup, to prevent any further
     // processing from being done.
     // return true;
@@ -211,12 +211,12 @@ bool MCAssembler::evaluateFixup(const MCAsmLayout &Layout,
                 Value = imm;
                 IsResolved = true;
             } else {
-                // resolver did not handle this symbol
+                getContext().reportError(Fixup.getLoc(), "resolver did not handle this symbol");
                 KsError = KS_ERR_ASM_SYMBOL_MISSING;
                 return false;
             }
         } else {
-            // no resolver registered
+            getContext().reportError(Fixup.getLoc(), "no resolver registered");
             KsError = KS_ERR_ASM_SYMBOL_MISSING;
             return false;
         }

@@ -1723,7 +1723,14 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       is_error = parseDirectiveAscii(IDVal, true);
       break;
     case DK_BYTE:
-      is_error = parseDirectiveValue(1, Info.KsError);
+      // For NASM, 'db' is parsed as DK_BYTE. So This patches this parser
+      // to accept strings so db "Hello, World" will somewhat work.
+      // TODO: Write a 'db' parser from scratch
+      if (getLexer().isNot(AsmToken::String)) {
+        is_error = parseDirectiveValue(1, Info.KsError);
+      } else {
+        is_error = parseDirectiveAscii(IDVal, true);
+      }
       break;
     case DK_SHORT:
     case DK_VALUE:

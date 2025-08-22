@@ -87,7 +87,7 @@ class RISCVAsmParser : public MCTargetAsmParser {
 
   // Helper to emit a combination of AUIPC and SecondOpcode. Used to implement
   // helpers such as emitLoadLocalAddress and emitLoadAddress.
-  void emitAuipcInstPair(MCOperand DestReg, MCOperand TmpReg,
+  void emitAuipcInstPair(MCInst &Inst, MCOperand DestReg, MCOperand TmpReg,
                          const MCExpr *Symbol, RISCVMCExpr::VariantKind VKHi,
                          unsigned SecondOpcode, SMLoc IDLoc, MCStreamer &Out);
 
@@ -1584,7 +1584,10 @@ void RISCVAsmParser::emitLoadImm(MCInst &oldInst, unsigned DestReg, int64_t Valu
   }
 }
 
-void RISCVAsmParser::emitAuipcInstPair(MCOperand DestReg, MCOperand TmpReg,
+// TODO: Try and mimick what arm does?
+// https://github.com/keystone-engine/keystone/blob/fb92f32391c6cced868252167509590319eeb58b/llvm/lib/Target/ARM/AsmParser/ARMAsmParser.cpp#L6984
+// https://github.com/keystone-engine/keystone/blob/fb92f32391c6cced868252167509590319eeb58b/llvm/lib/Target/ARM/ARMGenMCCodeEmitter.inc#L8443
+void RISCVAsmParser::emitAuipcInstPair(MCInst &Inst, MCOperand DestReg, MCOperand TmpReg,
                                        const MCExpr *Symbol,
                                        RISCVMCExpr::VariantKind VKHi,
                                        unsigned SecondOpcode, SMLoc IDLoc,
@@ -1599,17 +1602,20 @@ void RISCVAsmParser::emitAuipcInstPair(MCOperand DestReg, MCOperand TmpReg,
   Out.EmitLabel(TmpLabel);
 
   const RISCVMCExpr *SymbolHi = RISCVMCExpr::create(Symbol, VKHi, Ctx);
+  MCInst auipcInst = MCInstBuilder(RISCV::AUIPC).addOperand(TmpReg).addExpr(SymbolHi);
   emitToStreamer(
-      Out, MCInstBuilder(RISCV::AUIPC).addOperand(TmpReg).addExpr(SymbolHi));
+      Out, auipcInst);
 
   const MCExpr *RefToLinkTmpLabel =
       RISCVMCExpr::create(MCSymbolRefExpr::create(TmpLabel, Ctx),
                           RISCVMCExpr::VK_RISCV_PCREL_LO, Ctx);
-
-  emitToStreamer(Out, MCInstBuilder(SecondOpcode)
+  MCInst secondOpCodeInst = MCInstBuilder(SecondOpcode)
                           .addOperand(DestReg)
                           .addOperand(TmpReg)
-                          .addExpr(RefToLinkTmpLabel));
+                          .addExpr(RefToLinkTmpLabel)
+                          .setAddress(auipcInst.getAddress());
+  emitToStreamer(Out, secondOpCodeInst);
+  Inst.setAddress(secondOpCodeInst.getAddress());
 }
 
 void RISCVAsmParser::emitLoadLocalAddress(MCInst &Inst, SMLoc IDLoc,
@@ -1622,7 +1628,7 @@ void RISCVAsmParser::emitLoadLocalAddress(MCInst &Inst, SMLoc IDLoc,
   //             ADDI rdest, rdest, %pcrel_lo(TmpLabel)
   MCOperand DestReg = Inst.getOperand(0);
   const MCExpr *Symbol = Inst.getOperand(1).getExpr();
-  emitAuipcInstPair(DestReg, DestReg, Symbol, RISCVMCExpr::VK_RISCV_PCREL_HI,
+  emitAuipcInstPair(Inst, DestReg, DestReg, Symbol, RISCVMCExpr::VK_RISCV_PCREL_HI,
                     RISCV::ADDI, IDLoc, Out);
 }
 
@@ -1649,7 +1655,7 @@ void RISCVAsmParser::emitLoadAddress(MCInst &Inst, SMLoc IDLoc,
     SecondOpcode = RISCV::ADDI;
     VKHi = RISCVMCExpr::VK_RISCV_PCREL_HI;
   }
-  emitAuipcInstPair(DestReg, DestReg, Symbol, VKHi, SecondOpcode, IDLoc, Out);
+  emitAuipcInstPair(Inst, DestReg, DestReg, Symbol, VKHi, SecondOpcode, IDLoc, Out);
 }
 
 void RISCVAsmParser::emitLoadTLSIEAddress(MCInst &Inst, SMLoc IDLoc,
@@ -1663,7 +1669,7 @@ void RISCVAsmParser::emitLoadTLSIEAddress(MCInst &Inst, SMLoc IDLoc,
   MCOperand DestReg = Inst.getOperand(0);
   const MCExpr *Symbol = Inst.getOperand(1).getExpr();
   unsigned SecondOpcode = isRV64() ? RISCV::LD : RISCV::LW;
-  emitAuipcInstPair(DestReg, DestReg, Symbol, RISCVMCExpr::VK_RISCV_TLS_GOT_HI,
+  emitAuipcInstPair(Inst, DestReg, DestReg, Symbol, RISCVMCExpr::VK_RISCV_TLS_GOT_HI,
                     SecondOpcode, IDLoc, Out);
 }
 
@@ -1677,7 +1683,7 @@ void RISCVAsmParser::emitLoadTLSGDAddress(MCInst &Inst, SMLoc IDLoc,
   //             ADDI rdest, rdest, %pcrel_lo(TmpLabel)
   MCOperand DestReg = Inst.getOperand(0);
   const MCExpr *Symbol = Inst.getOperand(1).getExpr();
-  emitAuipcInstPair(DestReg, DestReg, Symbol, RISCVMCExpr::VK_RISCV_TLS_GD_HI,
+  emitAuipcInstPair(Inst, DestReg, DestReg, Symbol, RISCVMCExpr::VK_RISCV_TLS_GD_HI,
                     RISCV::ADDI, IDLoc, Out);
 }
 
@@ -1696,7 +1702,7 @@ void RISCVAsmParser::emitLoadStoreSymbol(MCInst &Inst, unsigned Opcode,
   unsigned TmpRegOpIdx = HasTmpReg ? 1 : 0;
   MCOperand TmpReg = Inst.getOperand(TmpRegOpIdx);
   const MCExpr *Symbol = Inst.getOperand(SymbolOpIdx).getExpr();
-  emitAuipcInstPair(DestReg, TmpReg, Symbol, RISCVMCExpr::VK_RISCV_PCREL_HI,
+  emitAuipcInstPair(Inst, DestReg, TmpReg, Symbol, RISCVMCExpr::VK_RISCV_PCREL_HI,
                     Opcode, IDLoc, Out);
 }
 

@@ -155,8 +155,11 @@ bool RISCVAsmBackend::writeNopData(uint64_t Count, MCObjectWriter * OW) const {
   bool HasStdExtC = STI.getFeatureBits()[RISCV::FeatureStdExtC];
   unsigned MinNopLen = HasStdExtC ? 2 : 4;
 
-  if ((Count % MinNopLen) != 0)
-    return false;
+  OW->WriteZeros(Count % MinNopLen);
+  Count -= Count % MinNopLen;
+
+//  if ((Count % MinNopLen) != 0)
+//    return false;
 
   // The canonical nop on RISC-V is addi x0, x0, 0.
   for (; Count >= 4; Count -= 4)

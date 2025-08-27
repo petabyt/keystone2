@@ -1597,18 +1597,22 @@ void RISCVAsmParser::emitAuipcInstPair(MCInst &Inst, MCOperand DestReg, MCOperan
   //             OP DestReg, TmpReg, %pcrel_lo(TmpLabel)
   MCContext &Ctx = getContext();
 
-  MCSymbol *TmpLabel = Ctx.createTempSymbol(
-      "pcrel_hi", /* AlwaysAddSuffix */ true, /* CanBeUnnamed */ false);
-  Out.EmitLabel(TmpLabel);
+//  MCSymbol *TmpLabel = Ctx.createTempSymbol(
+//      "pcrel_hi", /* AlwaysAddSuffix */ true, /* CanBeUnnamed */ false);
+//  Out.EmitLabel(TmpLabel);
 
   const RISCVMCExpr *SymbolHi = RISCVMCExpr::create(Symbol, VKHi, Ctx);
   MCInst auipcInst = MCInstBuilder(RISCV::AUIPC).addOperand(TmpReg).addExpr(SymbolHi);
   emitToStreamer(
       Out, auipcInst);
 
+  // Assume addi will always be 4 bytes so a relocation doesn't have to be used
+  const MCExpr *Const4 = MCConstantExpr::create(4, getContext());
+  const MCExpr *LabelAdd = MCBinaryExpr::createAdd(SymbolHi, Const4, getContext());
+
+  // keystone: switched to LabelAdd instead of MCSymbolRefExpr::create(TmpLabel, Ctx)
   const MCExpr *RefToLinkTmpLabel =
-      RISCVMCExpr::create(MCSymbolRefExpr::create(TmpLabel, Ctx),
-                          RISCVMCExpr::VK_RISCV_PCREL_LO, Ctx);
+      RISCVMCExpr::create(LabelAdd, RISCVMCExpr::VK_RISCV_PCREL_LO, Ctx);
   MCInst secondOpCodeInst = MCInstBuilder(SecondOpcode)
                           .addOperand(DestReg)
                           .addOperand(TmpReg)

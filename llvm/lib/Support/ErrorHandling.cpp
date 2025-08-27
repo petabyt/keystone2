@@ -68,6 +68,7 @@ void llvm_ks::llvm_unreachable_internal(const char *msg, const char *file,
   // This code intentionally doesn't call the ErrorHandler callback, because
   // llvm_unreachable is intended to be used to indicate "impossible"
   // situations, and not legitimate runtime errors.
+  printf("%s %s:%d\n", msg, file, line);
   abort();
 #ifdef LLVM_BUILTIN_UNREACHABLE
   // Windows systems and possibly others don't declare abort() to be noreturn,

@@ -71,7 +71,7 @@ public:
                                      const MCAsmLayout &Layout,
                                      MCAlignFragment &AF);
 
-  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup, char *Data, unsigned DataSize,
                           uint64_t Value, bool IsPCRel, unsigned int &KsError) const override;
 
   MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override;

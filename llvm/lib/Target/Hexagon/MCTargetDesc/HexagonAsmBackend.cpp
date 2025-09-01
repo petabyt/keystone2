@@ -172,7 +172,7 @@ public:
     return Infos[Kind - FirstTargetFixupKind];
   }
 
-  void applyFixup(MCFixup const & /*Fixup*/, char * /*Data*/,
+  void applyFixup(const MCAssembler &Asm, MCFixup const & /*Fixup*/, char * /*Data*/,
                   unsigned /*DataSize*/, uint64_t /*Value*/,
                   bool /*IsPCRel*/, unsigned int &KsError) const override {
     return;

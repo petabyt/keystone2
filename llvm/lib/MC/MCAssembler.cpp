@@ -761,7 +761,7 @@ void MCAssembler::layout(MCAsmLayout &Layout, unsigned int &KsError)
         std::tie(FixedValue, IsPCRel) = handleFixup(Layout, *F, Fixup, KsError);
         if (KsError)
             return;
-        getBackend().applyFixup(Fixup, Contents.data(),
+        getBackend().applyFixup(*this, Fixup, Contents.data(),
                                 Contents.size(), FixedValue, IsPCRel, KsError);
         if (KsError)
             return;

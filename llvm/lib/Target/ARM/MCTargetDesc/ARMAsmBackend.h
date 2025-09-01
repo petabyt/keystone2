@@ -49,7 +49,7 @@ public:
                             MCContext *Ctx, bool IsLittleEndian,
                             bool IsResolved) const;
 
-  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup, char *Data, unsigned DataSize,
                   uint64_t Value, bool IsPCRel, unsigned int &KsError) const override;
 
   unsigned getRelaxedOpcode(unsigned Op) const;

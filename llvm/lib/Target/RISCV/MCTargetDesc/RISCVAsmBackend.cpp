@@ -172,7 +172,7 @@ bool RISCVAsmBackend::writeNopData(uint64_t Count, MCObjectWriter * OW) const {
   return true;
 }
 
-static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value, unsigned int KsError) {
+static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value, MCContext &Ctx, unsigned int KsError) {
                                   
   unsigned Kind = Fixup.getKind();
   switch (Kind) {
@@ -201,16 +201,18 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value, unsigned 
     // Add 1 if bit 11 is 1, to compensate for low 12 bits being negative.
     return ((Value + 0x800) >> 12) & 0xfffff;
   case RISCV::fixup_riscv_jal: {
-    if (!isInt<21>(Value))
-      //Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    if (!isInt<21>(Value)) {
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
       // FIXME: report a more specific error to keystone
       KsError = KS_ERR_ASM_FIXUP_INVALID;
       return -1;
-    if (Value & 0x1)
-      //Ctx.reportError(Fixup.getLoc(), "fixup value must be 2-byte aligned");
+    }
+    if (Value & 0x1) {
+      Ctx.reportError(Fixup.getLoc(), "fixup value must be 2-byte aligned");
       // FIXME: report a more specific error to keystone
       KsError = KS_ERR_ASM_FIXUP_INVALID;
       return -1;
+    }
     // Need to produce imm[19|10:1|11|19:12] from the 21-bit Value.
     unsigned Sbit = (Value >> 20) & 0x1;
     unsigned Hi8 = (Value >> 12) & 0xff;
@@ -224,14 +226,16 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value, unsigned 
     return Value;
   }
   case RISCV::fixup_riscv_branch: {
-    if (!isInt<13>(Value))
-      //Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    if (!isInt<13>(Value)) {
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
       KsError = KS_ERR_ASM_FIXUP_INVALID;
       return -1;
-    if (Value & 0x1)
-      //Ctx.reportError(Fixup.getLoc(), "fixup value must be 2-byte aligned");
+    }
+    if (Value & 0x1) {
+      Ctx.reportError(Fixup.getLoc(), "fixup value must be 2-byte aligned");
       KsError = KS_ERR_ASM_FIXUP_INVALID;
       return -1;
+    }
     // Need to extract imm[12], imm[10:5], imm[4:1], imm[11] from the 13-bit
     // Value.
     unsigned Sbit = (Value >> 12) & 0x1;
@@ -283,14 +287,14 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value, unsigned 
   }
 }
 
-void RISCVAsmBackend::applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+void RISCVAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup, char *Data, unsigned DataSize,
                           uint64_t Value, bool IsPCRel, unsigned int &KsError) const {
-
+  MCContext &Ctx = Asm.getContext();
   MCFixupKindInfo Info = getFixupKindInfo(Fixup.getKind());
   if (!Value)
     return; // Doesn't change encoding.
   // Apply any target-specific value adjustments.
-  Value = adjustFixupValue(Fixup, Value, KsError);
+  Value = adjustFixupValue(Fixup, Value, Ctx, KsError);
 
   // Shift the value into position.
   Value <<= Info.TargetOffset;

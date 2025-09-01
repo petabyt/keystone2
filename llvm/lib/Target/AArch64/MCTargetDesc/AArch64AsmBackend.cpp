@@ -74,7 +74,7 @@ public:
     return Infos[Kind - FirstTargetFixupKind];
   }
 
-  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup, char *Data, unsigned DataSize,
                   uint64_t Value, bool IsPCRel, unsigned int &KsError) const override;
 
   bool mayNeedRelaxation(const MCInst &Inst) const override;
@@ -249,7 +249,7 @@ unsigned AArch64AsmBackend::getFixupKindContainereSizeInBytes(unsigned Kind) con
   }
 }
 
-void AArch64AsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
+void AArch64AsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup, char *Data,
                                    unsigned DataSize, uint64_t Value,
                                    bool IsPCRel, unsigned int &KsError) const {
   unsigned NumBytes = getFixupKindNumBytes(Fixup.getKind());

@@ -183,6 +183,10 @@ public:
                                 RISCVMCExpr::VariantKind &Kind,
                                 int64_t &Addend);
 
+  void ksApplyOptions(uint64_t Value) override {
+    clearFeatureBits(RISCV::FeatureStdExtC, "c");
+  }
+
   RISCVAsmParser(const MCSubtargetInfo &STI, MCAsmParser &Parser,
                  const MCInstrInfo &MII, const MCTargetOptions &Options)
       : MCTargetAsmParser(Options, STI) {

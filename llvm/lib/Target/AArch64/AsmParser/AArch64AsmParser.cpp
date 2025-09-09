@@ -113,6 +113,8 @@ private:
   OperandMatchResultTy tryParseGPRSeqPair(OperandVector &Operands);
 
 public:
+  void ksApplyOptions(uint64_t Value) override {}
+
   enum AArch64MatchResultTy {
     Match_InvalidSuffix = FIRST_TARGET_MATCH_RESULT_TY,
 #define GET_OPERAND_DIAGNOSTIC_TYPES

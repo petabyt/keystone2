@@ -716,8 +716,12 @@ int ks_asm(ks_engine *ks,
         if (ks->syntax == KS_OPT_SYNTAX_NASM) {
             Parser->initializeDirectiveKindMap(KS_OPT_SYNTAX_NASM);
         }
-        // Daniel forced ; to be a comment on all x86 syntax rather than just nasm
+        // Daniel is forcing ; to be a comment on all x86 syntax rather than just nasm
         ks->MAI->setCommentString(";");
+    }
+
+    if (ks->arch == KS_ARCH_RISCV) {
+        TAP->ksApplyOptions(0);
     }
 
     *stat_count = Parser->Run(false, address);

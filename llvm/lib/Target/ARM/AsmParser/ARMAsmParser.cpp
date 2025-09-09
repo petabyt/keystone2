@@ -348,6 +348,8 @@ class ARMAsmParser : public MCTargetAsmParser {
   bool shouldOmitPredicateOperand(StringRef Mnemonic, OperandVector &Operands);
 
 public:
+  void ksApplyOptions(uint64_t Value) override {}
+
   enum ARMMatchResultTy {
     Match_RequiresITBlock = FIRST_TARGET_MATCH_RESULT_TY,
     Match_RequiresNotITBlock,

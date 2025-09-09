@@ -404,15 +404,8 @@ ks_err ks_open(ks_arch arch, int mode, ks_engine **result)
                     return KS_ERR_MODE;
                 }
 
-                switch(mode) {
-                    default: break;
-                    case KS_MODE_RISCV32:
-                        TripleName = "riscv32";
-                        break;
-                    case KS_MODE_RISCV64:
-                        TripleName = "riscv64";
-                        break;
-                }
+                if (mode & KS_MODE_RISCV32) TripleName = "riscv32";
+                if (mode & KS_MODE_RISCV64) TripleName = "riscv64";
 
                 InitKs(arch, ks, TripleName);
 
@@ -721,7 +714,7 @@ int ks_asm(ks_engine *ks,
     }
 
     if (ks->arch == KS_ARCH_RISCV) {
-        TAP->ksApplyOptions(0);
+        TAP->ksApplyOptions(KS_MODE_RISCVC, ks->mode & KS_MODE_RISCVC);
     }
 
     *stat_count = Parser->Run(false, address);

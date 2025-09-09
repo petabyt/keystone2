@@ -21,7 +21,7 @@ MCTargetAsmParser::MCTargetAsmParser(MCTargetOptions const &MCOptions,
 MCTargetAsmParser::~MCTargetAsmParser() {
 }
 
-void MCTargetAsmParser::ksApplyOptions(uint64_t Value) {}
+void MCTargetAsmParser::ksApplyOptions(int key, uint64_t Value) {}
 
 MCSubtargetInfo &MCTargetAsmParser::copySTI() {
   MCSubtargetInfo &STICopy = getContext().getSubtargetCopy(getSTI());

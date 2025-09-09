@@ -292,7 +292,7 @@ class PPCAsmParser : public MCTargetAsmParser {
 
 
 public:
-  void ksApplyOptions(uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {}
 
   PPCAsmParser(const MCSubtargetInfo &STI, MCAsmParser &,
                const MCInstrInfo &MII, const MCTargetOptions &Options)

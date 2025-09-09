@@ -46,7 +46,7 @@ class MCInstrInfo;
 namespace {
 class MipsAssemblerOptions {
 public:
-  void ksApplyOptions(uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {}
 
   MipsAssemblerOptions(const FeatureBitset &Features_) :
     ATReg(1), Reorder(true), Macro(true), Features(Features_) {}

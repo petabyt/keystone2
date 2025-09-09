@@ -891,7 +891,7 @@ private:
   /// }
 
 public:
-  void ksApplyOptions(uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {}
 
   X86AsmParser(const MCSubtargetInfo &sti, MCAsmParser &Parser,
                const MCInstrInfo &mii, const MCTargetOptions &Options)

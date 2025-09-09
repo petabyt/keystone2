@@ -90,7 +90,7 @@ class SparcAsmParser : public MCTargetAsmParser {
                  SmallVectorImpl<MCInst> &Instructions);
 
 public:
-  void ksApplyOptions(uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {}
 
   SparcAsmParser(const MCSubtargetInfo &sti, MCAsmParser &parser,
                 const MCInstrInfo &MII,

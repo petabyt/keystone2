@@ -36,6 +36,8 @@
 #include "RISCVGenAsmMatcher.inc"
 #include <limits>
 
+#include <keystone/keystone.h>
+
 using namespace llvm_ks;
 
 // Include the auto-generated portion of the compress emitter.
@@ -183,8 +185,13 @@ public:
                                 RISCVMCExpr::VariantKind &Kind,
                                 int64_t &Addend);
 
-  void ksApplyOptions(uint64_t Value) override {
-    clearFeatureBits(RISCV::FeatureStdExtC, "c");
+  void ksApplyOptions(int key, uint64_t Value) override {
+    if (key == KS_MODE_RISCVC) {
+      if (Value)
+        setFeatureBits(RISCV::FeatureStdExtC, "c");
+      else
+        clearFeatureBits(RISCV::FeatureStdExtC, "c");
+    }
   }
 
   RISCVAsmParser(const MCSubtargetInfo &STI, MCAsmParser &Parser,

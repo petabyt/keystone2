@@ -141,7 +141,7 @@ public:
   }
 
   // Assembler options
-  virtual void ksApplyOptions(uint64_t Value);
+  virtual void ksApplyOptions(int key, uint64_t Value);
 
   virtual bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                              SMLoc &EndLoc, unsigned int &ErrorCode) = 0;

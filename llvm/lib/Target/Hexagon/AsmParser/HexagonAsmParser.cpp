@@ -119,7 +119,7 @@ class HexagonAsmParser : public MCTargetAsmParser {
   /// }
 
 public:
-  void ksApplyOptions(uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {}
 
   HexagonAsmParser(const MCSubtargetInfo &_STI, MCAsmParser &_Parser,
                    const MCInstrInfo &MII, const MCTargetOptions &Options)

@@ -387,7 +387,7 @@ private:
   bool parseOperand(OperandVector &Operands, StringRef Mnemonic, unsigned int &ErrorCode);
 
 public:
-  void ksApplyOptions(uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {}
 
   SystemZAsmParser(const MCSubtargetInfo &sti, MCAsmParser &parser,
                    const MCInstrInfo &MII,

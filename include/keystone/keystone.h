@@ -93,6 +93,7 @@ typedef enum ks_mode {
         //riscv
     KS_MODE_RISCV32 = 1 << 2,     // 32-bit mode
     KS_MODE_RISCV64 = 1 << 3,     // 64-bit mode
+    KS_MODE_RISCVC = 1 << 4,     // C extension
     // sparc
     KS_MODE_SPARC32 = 1 << 2,     // 32-bit mode
     KS_MODE_SPARC64 = 1 << 3,     // 64-bit mode

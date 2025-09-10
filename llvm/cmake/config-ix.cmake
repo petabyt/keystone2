@@ -41,6 +41,8 @@ function(check_type_exists type files variable)
     " ${variable})
 endfunction()
 
+set(CMAKE_REQUIRED_LIBRARIES)
+
 # include checks
 check_include_file(dirent.h HAVE_DIRENT_H)
 check_include_file(dlfcn.h HAVE_DLFCN_H)

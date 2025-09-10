@@ -50,11 +50,11 @@ public:
                                  const MCSubtargetInfo &STI,
                                  unsigned int &KsError) const override;
 
-  void expandFunctionCall(const MCInst &MI, raw_ostream &OS,
+  void expandFunctionCall(MCInst &MI, raw_ostream &OS,
                           SmallVectorImpl<MCFixup> &Fixups,
                           const MCSubtargetInfo &STI) const;
 
-  void expandAddTPRel(const MCInst &MI, raw_ostream &OS,
+  void expandAddTPRel(MCInst &MI, raw_ostream &OS,
                       SmallVectorImpl<MCFixup> &Fixups,
                       const MCSubtargetInfo &STI) const;
 
@@ -93,7 +93,7 @@ MCCodeEmitter *llvm_ks::createRISCVMCCodeEmitter(const MCInstrInfo &MCII,
 // C_JALR have no immediate operand field.  We let linker relaxation deal with
 // it. When linker relaxation enabled, AUIPC and JALR have chance relax to JAL.
 // If C extension is enabled, JAL has chance relax to C_JAL.
-void RISCVMCCodeEmitter::expandFunctionCall(const MCInst &MI, raw_ostream &OS,
+void RISCVMCCodeEmitter::expandFunctionCall(MCInst &MI, raw_ostream &OS,
                                             SmallVectorImpl<MCFixup> &Fixups,
                                             const MCSubtargetInfo &STI) const {
   MCInst TmpInst;
@@ -118,22 +118,36 @@ void RISCVMCCodeEmitter::expandFunctionCall(const MCInst &MI, raw_ostream &OS,
   // Emit AUIPC Ra, Func with R_RISCV_CALL relocation type.
   TmpInst = MCInstBuilder(RISCV::AUIPC)
                 .addReg(Ra)
-                .addOperand(MCOperand::createExpr(CallExpr));
+                .addOperand(MCOperand::createExpr(CallExpr))
+                .setAddress(MI.getAddress());
   Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
   support::endian::Writer<support::little>(OS).write<uint32_t>(Binary);
+
+  if (Ctx.instructionStreamHandler != nullptr) {
+    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, TmpInst.getAddress(), 4);
+  }
+
+  TmpInst.setAddress(TmpInst.getAddress() + 4);
 
   if (MI.getOpcode() == RISCV::PseudoTAIL)
     // Emit JALR X0, X6, 0
-    TmpInst = MCInstBuilder(RISCV::JALR).addReg(RISCV::X0).addReg(Ra).addImm(0);
+    TmpInst = MCInstBuilder(RISCV::JALR).addReg(RISCV::X0).addReg(Ra).addImm(0).setAddress(TmpInst.getAddress());
   else
     // Emit JALR Ra, Ra, 0
-    TmpInst = MCInstBuilder(RISCV::JALR).addReg(Ra).addReg(Ra).addImm(0);
+    TmpInst = MCInstBuilder(RISCV::JALR).addReg(Ra).addReg(Ra).addImm(0).setAddress(TmpInst.getAddress());
+
   Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
   support::endian::Writer<support::little>(OS).write<uint32_t>(Binary);
+
+  if (Ctx.instructionStreamHandler != nullptr) {
+    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, TmpInst.getAddress(), 4);
+  }
+
+  MI.setAddress(TmpInst.getAddress() + 4);
 }
 
 // Expand PseudoAddTPRel to a simple ADD with the correct relocation.
-void RISCVMCCodeEmitter::expandAddTPRel(const MCInst &MI, raw_ostream &OS,
+void RISCVMCCodeEmitter::expandAddTPRel(MCInst &MI, raw_ostream &OS,
                                         SmallVectorImpl<MCFixup> &Fixups,
                                         const MCSubtargetInfo &STI) const {
   MCOperand DestReg = MI.getOperand(0);
@@ -165,9 +179,16 @@ void RISCVMCCodeEmitter::expandAddTPRel(const MCInst &MI, raw_ostream &OS,
   MCInst TmpInst = MCInstBuilder(RISCV::ADD)
                        .addOperand(DestReg)
                        .addOperand(SrcReg)
-                       .addOperand(TPReg);
+                       .addOperand(TPReg)
+                       .setAddress(MI.getAddress());
   uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
   support::endian::Writer<support::little>(OS).write<uint32_t>(Binary);
+
+  if (Ctx.instructionStreamHandler != nullptr) {
+    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, TmpInst.getAddress(), 4);
+  }
+
+  MI.setAddress(TmpInst.getAddress() + 4);
 }
 
 void RISCVMCCodeEmitter::encodeInstruction(MCInst &Inst, raw_ostream &OS,

@@ -1211,15 +1211,15 @@ bool PPCAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
         return true;
     return (ErrorCode != 0);
   case Match_MissingFeature:
-    // return Error(IDLoc, "instruction use requires an option to be enabled");
+    Error(IDLoc, "instruction use requires an option to be enabled");
     ErrorCode = KS_ERR_ASM_PPC_MISSINGFEATURE;
     return true;
   case Match_MnemonicFail:
-    // return Error(IDLoc, "unrecognized instruction mnemonic");
+    Error(IDLoc, "unrecognized instruction mnemonic");
     ErrorCode = KS_ERR_ASM_PPC_MNEMONICFAIL;
     return true;
   case Match_InvalidOperand: {
-#if 0
+#if 1
     SMLoc ErrorLoc = IDLoc;
     if (ErrorInfo != ~0ULL) {
       if (ErrorInfo >= Operands.size())
@@ -1746,16 +1746,16 @@ bool PPCAsmParser::ParseDirectiveWord(unsigned Size, SMLoc L) {
         return false;
 
       if (const auto *MCE = dyn_cast<MCConstantExpr>(Value)) {
-        bool Error;
+        bool MyError;
         //assert(Size <= 8 && "Invalid size");
         if (Size > 8)
             return true;
         uint64_t IntValue = MCE->getValue();
         if (!isUIntN(8 * Size, IntValue) && !isIntN(8 * Size, IntValue))
-          //return Error(ExprLoc, "literal value out of range for directive");
+          Error(ExprLoc, "literal value out of range for directive");
           return true;
-        getStreamer().EmitIntValue(IntValue, Size, Error);
-        if (Error)
+        getStreamer().EmitIntValue(IntValue, Size, MyError);
+        if (MyError)
             return true;
       } else {
         getStreamer().EmitValue(Value, Size, ExprLoc);

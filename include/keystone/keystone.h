@@ -90,6 +90,7 @@ typedef enum ks_mode {
     KS_MODE_PPC32 = 1 << 2,       // 32-bit mode
     KS_MODE_PPC64 = 1 << 3,       // 64-bit mode
     KS_MODE_QPX = 1 << 4,         // Quad Processing eXtensions mode
+    KS_MODE_R_REG_SYNTAX = 1 << 5,         // Quad Processing eXtensions mode
         //riscv
     KS_MODE_RISCV32 = 1 << 2,     // 32-bit mode
     KS_MODE_RISCV64 = 1 << 3,     // 64-bit mode

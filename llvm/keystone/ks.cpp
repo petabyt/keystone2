@@ -716,6 +716,9 @@ int ks_asm(ks_engine *ks,
     if (ks->arch == KS_ARCH_RISCV) {
         TAP->ksApplyOptions(KS_MODE_RISCVC, ks->mode & KS_MODE_RISCVC);
     }
+    if (ks->arch == KS_ARCH_PPC) {
+        TAP->ksApplyOptions(KS_MODE_R_REG_SYNTAX, ks->mode & KS_MODE_R_REG_SYNTAX);
+    }
 
     *stat_count = Parser->Run(false, address);
 

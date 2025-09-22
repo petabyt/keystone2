@@ -131,8 +131,8 @@ public:
       llvm_unreachable ("Invalid instruction size");
     }
 
-    if (Ctx.instructionStreamHandler != nullptr) {
-      Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, MI.getAddress(), Size);
+    if (CTX.instructionStreamHandler != nullptr) {
+      CTX.instructionStreamHandler(CTX.instructionStreamHandlerArg, MI.getAddress(), Size);
     }
 
     // Keystone: update Inst.Address to point to the next instruction

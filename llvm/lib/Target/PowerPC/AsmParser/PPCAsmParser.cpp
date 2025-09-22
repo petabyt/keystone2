@@ -32,6 +32,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "keystone/ppc.h"
+#include "keystone/keystone.h"
 
 using namespace llvm_ks;
 
@@ -292,7 +293,12 @@ class PPCAsmParser : public MCTargetAsmParser {
 
 
 public:
-  void ksApplyOptions(int key, uint64_t Value) override {}
+  void ksApplyOptions(int key, uint64_t Value) override {
+    // See comments in PPCAsmParser::ParseOperand
+    if (key == KS_MODE_R_REG_SYNTAX) {
+      IsDarwin = (bool)(Value != 0);
+    }
+  }
 
   PPCAsmParser(const MCSubtargetInfo &STI, MCAsmParser &,
                const MCInstrInfo &MII, const MCTargetOptions &Options)

@@ -1613,7 +1613,8 @@ void RISCVAsmParser::emitAuipcInstPair(MCInst &Inst, MCOperand DestReg, MCOperan
 //  Out.EmitLabel(TmpLabel);
 
   const RISCVMCExpr *SymbolHi = RISCVMCExpr::create(Symbol, VKHi, Ctx);
-  MCInst auipcInst = MCInstBuilder(RISCV::AUIPC).addOperand(TmpReg).addExpr(SymbolHi);
+  MCInst auipcInst = MCInstBuilder(RISCV::AUIPC).addOperand(TmpReg).addExpr(SymbolHi)
+    .setAddress(Inst.getAddress());
   emitToStreamer(
       Out, auipcInst);
 

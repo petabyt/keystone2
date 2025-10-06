@@ -112,7 +112,7 @@ void SparcMCCodeEmitter::encodeInstruction(MCInst &MI, raw_ostream &OS,
   }
 
   if (Ctx.instructionStreamHandler != nullptr) {
-    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, MI.getAddress(), Size);
+    Ctx.instructionStreamHandler(Ctx.instructionStreamHandlerArg, MI.getAddress(), 4);
   }
 
   // Keystone: update Inst.Address to point to the next instruction

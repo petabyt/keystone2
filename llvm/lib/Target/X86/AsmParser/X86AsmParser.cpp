@@ -3017,7 +3017,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
   MatchFPUWaitAlias(IDLoc, Op, Operands, Out, MatchingInlineAsm);
 
   bool WasOriginallyInvalidOperand = false;
-  MCInst Inst;
+  MCInst Inst(Address);
 
   // First, try a direct match.
   switch (MatchInstructionImpl(Operands, Inst,
@@ -3039,6 +3039,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
           return true;
     }
     Opcode = Inst.getOpcode();
+    Address = Inst.getAddress();
     return false;
   case Match_MissingFeature:
     return ErrorMissingFeature(IDLoc, ErrorInfo, MatchingInlineAsm);
@@ -3099,6 +3100,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
           return true;
     }
     Opcode = Inst.getOpcode();
+    Address = Inst.getAddress();
     return false;
   }
 
@@ -3107,7 +3109,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
   // If we had multiple suffix matches, then identify this as an ambiguous
   // match.
   if (NumSuccessfulMatches > 1) {
-#if 0
+#if 1
     char MatchChars[4];
     unsigned NumMatches = 0;
     for (unsigned I = 0, E = array_lengthof(Match); I != E; ++I)
@@ -3128,7 +3130,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
 #endif
     //printf("*** >>> InvalidOperand 11\n");
     ErrorCode = KS_ERR_ASM_X86_INVALIDOPERAND;
-    //Error(IDLoc, OS.str(), EmptyRanges, MatchingInlineAsm);
+    Error(IDLoc, OS.str(), EmptyRanges, MatchingInlineAsm);
     return true;
   }
 
@@ -3140,10 +3142,9 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
     if (!WasOriginallyInvalidOperand) {
       ArrayRef<SMRange> Ranges =
           MatchingInlineAsm ? EmptyRanges : Op.getLocRange();
+      ErrorCode = KS_ERR_ASM_X86_MNEMONICFAIL;
       return Error(IDLoc, "invalid instruction mnemonic '" + Base + "'",
                    Ranges, MatchingInlineAsm);
-      ErrorCode = KS_ERR_ASM_X86_MNEMONICFAIL;
-      return true;
     }
 
     // Recover location info for the operand if we know which was the problem.
@@ -3193,7 +3194,6 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
   ErrorCode = KS_ERR_ASM_X86_MNEMONICFAIL;
   return Error(IDLoc, "unknown use of instruction mnemonic without a size suffix",
         EmptyRanges, MatchingInlineAsm);
-  return true;
 }
 
 bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,

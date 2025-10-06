@@ -46,8 +46,6 @@ class MCInstrInfo;
 namespace {
 class MipsAssemblerOptions {
 public:
-  void ksApplyOptions(int key, uint64_t Value) override {}
-
   MipsAssemblerOptions(const FeatureBitset &Features_) :
     ATReg(1), Reorder(true), Macro(true), Features(Features_) {}
 
@@ -106,6 +104,8 @@ const FeatureBitset MipsAssemblerOptions::AllArchRelatedMask = {
 
 namespace {
 class MipsAsmParser : public MCTargetAsmParser {
+  void ksApplyOptions(int key, uint64_t Value) override {}
+
   MipsTargetStreamer &getTargetStreamer() {
     MCTargetStreamer &TS = *getParser().getStreamer().getTargetStreamer();
     return static_cast<MipsTargetStreamer &>(TS);

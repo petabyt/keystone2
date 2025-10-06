@@ -111,4 +111,7 @@ endif()
 
 if(NOT BUILD_LIBS_ONLY)
     add_subdirectory(suite/fuzz)
+    add_executable(test_split suite/test_split.c)
+    target_link_libraries(test_split PUBLIC keystone)
+    target_include_directories(test_split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 endif()

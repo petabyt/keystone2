@@ -86,7 +86,7 @@ SystemZMCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
   return Infos[Kind - FirstTargetFixupKind];
 }
 
-void SystemZMCAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
+void SystemZMCAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup, char *Data,
                                      unsigned DataSize, uint64_t Value,
                                      bool IsPCRel, unsigned int &KsError) const {
   MCFixupKind Kind = Fixup.getKind();
